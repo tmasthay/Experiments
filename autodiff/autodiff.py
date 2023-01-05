@@ -35,10 +35,10 @@ class Mine(Lagrangian):
 if( __name__ == "__main__" ):
     def direct_gradient_1d(m):
         return np.exp(m) * (np.cos( (1+ np.cos(m)) ** 0.2 ) \
-            + 0.2 * np.sin( (1+np.cos(m)) ** 0.2 ) * np.sin(m) * (1 + np.cos(m)) ** (-0.8) )
+            + 0.2 * np.sin( (1+np.cos(m)) ** 0.2 ) * np.sin(m) * ((1 + np.cos(m)) ** (-0.8)) )
 
     tmp = Mine(dim=1, uc=np.array([10.0]))
-    m = np.linspace(0,10,100)
+    m = np.linspace(-10,10,1000)
     g_adjoint_state = np.zeros(len(m))
     g_direct = np.zeros(len(m))
     for (i,mm) in enumerate(m):
