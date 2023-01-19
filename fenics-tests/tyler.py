@@ -34,14 +34,18 @@ def block_matrix(blocks, block_indices, rows, cols, mode='uniform'):
     if( mode == 'uniform' ):
         for b in blocks:
             assert(blocks[0].shape == b.shape)
+        rows_uni, cols_uni = blocks[0].shape
     A = np.zeros((rows, cols))
     for (B, indices) in zip(blocks, block_indices):
-        row_start = indices[0]
-        col_start = indices[1]
-        rows_lcl, cols_lcl = B.shape
-        row_end = row_start + rows_lcl
-        col_end = col_start + cols_lcl
-        A[row_start:row_end, col_start_col_end] = B
+        if( mode == 'uniform' ):
+            row_block, col_block = indices
+            row_start, col_start = row_block * rows_uni, col_block * cols_uni
+            row_end, col_end = row_start + rows_uni, col_start + cols_uni
+        else:
+            row_start, col_start = indices
+            rows_lcl, cols_lcl = B.shape
+            row_end, col_end = row_start + rows_lcl, col_start + cols_lcl
+        A[row_start:row_end, col_start:col_end] = B
     return A
 
     
