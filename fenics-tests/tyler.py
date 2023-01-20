@@ -35,6 +35,7 @@ def block_matrix(blocks, block_indices, rows, cols, mode='uniform'):
         for b in blocks:
             assert(blocks[0].shape == b.shape)
         rows_uni, cols_uni = blocks[0].shape
+        rows, cols = rows_uni * rows, cols_uni * cols
     A = np.zeros((rows, cols))
     for (B, indices) in zip(blocks, block_indices):
         if( mode == 'uniform' ):
@@ -48,4 +49,26 @@ def block_matrix(blocks, block_indices, rows, cols, mode='uniform'):
         A[row_start:row_end, col_start:col_end] = B
     return A
 
-    
+def pretty_print(A, blocks=[None,None], hor_sep='*', ver_sep='|'):
+    rows, cols = A.shape
+    R,C = blocks
+    for r in range(rows):
+        s = ''
+        for c in range(cols):
+            tmp = '%.1f'%A[r,c]
+            if( len(tmp) == 3 ):
+                tmp = ' ' + tmp
+            s += '%s '%tmp
+            if( C != None and np.mod(c,C) == C-1 ):
+                s += ' %s '%ver_sep
+        print(s)
+        if( R != None and np.mod(r,R) == R-1 ):
+            print(len(s)*hor_sep)
+
+if( __name__ == "__main__" ):
+    x = banded([1,-2,1], [-1,0,1],5)
+    y = banded([-1,1], [-1,1], 5)
+    z = banded([-1,1], [1,-1], 5)
+    A = block_matrix([x,x,x,y,z,y,z],[[0,0],[1,1],[2,2],[0,4],[1,3],[1,5],[2,4]], 3, 6)
+    print(A.shape)
+    pretty_print(A, blocks=[None,5]) 
