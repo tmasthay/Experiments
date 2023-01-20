@@ -49,7 +49,31 @@ def block_matrix(blocks, block_indices, rows, cols, mode='uniform'):
         A[row_start:row_end, col_start:col_end] = B
     return A
 
-def pretty_print(A, blocks=[None,None], hor_sep='*', ver_sep='|'):
+#only implements for square matrices for now
+def banded_block(blocks, bands, size):
+    assert( len(size) == 1 )
+    assert(len(blocks) == len(bands))
+    for (b, band) in zip(blocks, bands):
+        assert(len(b) == len(blocks[0]))
+        assert(len(b) - abs(band) > 0)
+
+    nx,ny = blocks.shape
+    assert( nx == ny )
+    assert( np.mod(size, nx) + np.mod(size, ny) == 0 )
+    nbx, nby = int(size / nx), int(size / ny)
+    
+    banded_matrices = []
+    band_indices = []
+    for (b, band) in zip(blocks, bands):
+        if( band < 0 ):
+            band_indices.append([e for e in zip(range(abs(band),nx), range(ny))])
+            [banded_matrices.append(b) for i in min(nx-abs(band), ny)]
+        else:
+            band_indices.append([e for e in zip(range(nx), range(abs(band),ny))])
+            [banded_matrices.append(b) for i in min(nx, ny - abs(band))]
+    return block_matrix(banded_matrices, bands, rows, cols, 'uniform')
+
+def pretty_print(A, blocks=[None,None], hor_sep='-', ver_sep='|'):
     rows, cols = A.shape
     R,C = blocks
     for r in range(rows):
@@ -66,9 +90,11 @@ def pretty_print(A, blocks=[None,None], hor_sep='*', ver_sep='|'):
             print(len(s)*hor_sep)
 
 if( __name__ == "__main__" ):
+    nx = 3
+    ny = 6
     x = banded([1,-2,1], [-1,0,1],5)
     y = banded([-1,1], [-1,1], 5)
     z = banded([-1,1], [1,-1], 5)
     A = block_matrix([x,x,x,y,z,y,z],[[0,0],[1,1],[2,2],[0,4],[1,3],[1,5],[2,4]], 3, 6)
     print(A.shape)
-    pretty_print(A, blocks=[None,5]) 
+    pretty_print(A, blocks=[5,5]) 
