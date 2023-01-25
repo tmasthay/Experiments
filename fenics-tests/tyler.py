@@ -45,55 +45,124 @@ def symdiag(vals, diags):
     V = ['[' + ','.join(e) + ']' for e in V]
     return '[' + ',\n'.join(V) + ']'
 
-def inc_calls(func):
-    def helper(*args, **kwargs):
-        name = str(func).split(' ')[1] + '_calls'
-        if( name not in d.keys() ):
-            d[name] = 0
-        d[name] += 1
-        func(*args, **kwargs)
-    return helper
+class dec_nsp:
+    env = dict()
 
-def reset_calls(d, verbose=False):
-    def decorator(func):
-        def helper():
-            name = str(func).split(' ')[1]
-            d[name] = 0
-            if( verbose ):
-                print('WARNING: "%s" reset within reset_calls decorator'%name)
+    def dec(func):
+        def helper(*args, **kwargs):
+            name = str(func)
+            if( name not in dec_nsp.env.keys() ):
+                dec_nsp.env[name] = {'calls': 1}
+                print(dec_nsp.env)
+            else:
+                dec_nsp.env[name]['calls'] += 1
+                print(dec_nsp.env)
+            func(*args, **kwargs)
         return helper
-    return decorator
+
+    def dec_obj(obj='bound', decorator_action=(lambda f,d,*a,**k: \
+            f(*a,*k))):
+        bound = ['bound', 'class']
+        def dec(func):
+            def helper(*args, **kwargs):
+                if( len(args) == 0 and obj in bound ):
+                    raise ValueError('dec_obj is meant to decorate %s'%(
+                        'class functions with signatures of the form %s'%(
+                        'f(self, *args, **kwargs)...your function is %s'%(
+                        'of the form f(**kwargs), which is independent %s'%(
+                        'of the instance of the class, i.e., static\n')))))
+                elif( obj not in bound ):
+                    obj_str = 'unbound'
+                else:
+                    obj_str = str(args[0])
+                f_str = str(func)
+                d = dec_nsp.env
+                if( obj_str not in d.keys() ):
+                    d[obj_str] = dict()
+                if( f_str not in d[obj_str] ):
+                    d[obj_str][f_str] = dict()
+                out_val = func(*args, **kwargs) 
+                decorator_action(out_val, d[obj_str][f_str], \
+                    *args, **kwargs)
+            return helper
+        return dec
+
+    def inc_obj(obj='bound'):
+        def decorator_action(f_out, d, *args, **kwargs):
+            d['calls'] = 1 if 'calls' not in d.keys() else d['calls'] + 1
+        return dec_nsp.dec_obj(obj, decorator_action) 
+    
+    def get_meta(obj):
+        s = str(obj)
+        if( s in dec_nsp.env.keys() ):
+            return dec_nsp.env[s]
+        else:
+            return dict()
+
+    def report_meta(obj):
+         s = str(obj)
+         print('METADATA FOR %s'%s)
+         print(80*'*')
+         print(str(dec_nsp.get_meta(obj)))
+         print(80*'*' + '\n')
 
 if( __name__ == "__main__" ):
-    tracker1 = dict()
-    tracker2 = dict()
- 
-    inc1 = inc_calls(tracker1)
-    inc2 = inc_calls(tracker2)
+    class MyClass:
+        def __init__(self, xx=0):
+            self.x = xx
+            self.inc = dec_nsp.dec_obj(str(self))
     
-    @inc1
-    def foo(*args, **kwargs):
-        print('foo called %d time(s)...'%(tracker1['foo']),end='')
-        print('Latest call with args="%s", kwargs="%s"'%(str(args), str(kwargs)))
+        @dec_nsp.inc_obj('bound')
+        def set_x(self, xx):
+            self.x = xx
+    
+        @dec_nsp.inc_obj('bound')
+        def static_method_treated_nonstatically():
+             print('Should get error raised before this statement hits.')
+    
+        @dec_nsp.inc_obj('unbound')
+        def static_method_correct():
+             print('Called static method...no error raised')
+    
+        @dec_nsp.inc_obj('bound')
+        def static_method_unavoidable_bug(arg1_not_self):
+             print('Here we have treated our first argument like %s'%(
+                 'it is self but is not truly self...this is on the user, %s'%(
+                 'not me')))
+    
+        @dec_nsp.inc_obj('unbound')
+        def static_method_bug_workaround(arg1_not_self):
+             print('Here we have treated first arg like we should')
 
-    @inc2
-    def bar(a,b):
-        print('bar called %d time(s)...'%(tracker2['bar']),end='')
-        print('Latest call with a="%s", b="%s"'%(str(a), str(b)))
+    u = MyClass()
+    v = MyClass()
 
-    @inc1
-    def baz():
-        print('baz called %d time(s)...'%(tracker1['baz']))
+    u.set_x(1)
+    u.set_x(2)
+    v.set_x(3)
 
-    @inc2
-    def boom():
-        print('boom called %d times...tracker1="%s"...tracker2="%s"'%(tracker2['boom'], tracker1, tracker2))
+    try:
+        MyClass.static_method_treated_nonstatically()
+    except ValueError as e:
+        print(e)
 
-    N = 100
-    calls = [int(i) for i in np.round(np.random.random(N) * 3)]
-    funcs = [foo, bar, baz, boom]
-    boom()
-    for c in calls:
-        if( c == 0 ): funcs[0](1,2,key1='yes',key2=(lambda x : x)) 
-        elif( c == 1 ): funcs[1](np.random.random(), np.random.random())
-        else: funcs[c]() 
+    MyClass.static_method_correct()
+    MyClass.static_method_unavoidable_bug(1.0)
+    MyClass.static_method_unavoidable_bug(2.0)
+    MyClass.static_method_bug_workaround(3.0) 
+
+    dec_nsp.report_meta(u)
+    dec_nsp.report_meta(v)
+
+    print("""
+        Now let's check the unbound static methods. We should see counts
+        for static_method_correct and static_method_bug_workaround but not
+        for static_method_unavoidable_bug
+        and static_method_treated_nonstatically""")
+    dec_nsp.report_meta('unbound')
+
+    print("""
+       Now checking the full dictionary, we do see that info for the
+       incorrect static treatment is there but it is not formatted cleanly
+       """)
+    print(dec_nsp.env)
