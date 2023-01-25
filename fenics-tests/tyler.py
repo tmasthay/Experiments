@@ -45,22 +45,55 @@ def symdiag(vals, diags):
     V = ['[' + ','.join(e) + ']' for e in V]
     return '[' + ',\n'.join(V) + ']'
 
+def inc_calls(func):
+    def helper(*args, **kwargs):
+        name = str(func).split(' ')[1] + '_calls'
+        if( name not in d.keys() ):
+            d[name] = 0
+        d[name] += 1
+        func(*args, **kwargs)
+    return helper
+
+def reset_calls(d, verbose=False):
+    def decorator(func):
+        def helper():
+            name = str(func).split(' ')[1]
+            d[name] = 0
+            if( verbose ):
+                print('WARNING: "%s" reset within reset_calls decorator'%name)
+        return helper
+    return decorator
+
 if( __name__ == "__main__" ):
-    nx = 5
-    ny = 5 
-    n = min(nx,ny)
-    N = nx * ny
-   
-    pad = lambda x,n: np.concatenate([x,np.zeros(n)])
-    pad1 = lambda v,m,n=0 : pad(v * np.ones(m),n)
+    tracker1 = dict()
+    tracker2 = dict()
  
-    A = spdiags([pad1(1,n), pad1(-2,n), pad1(1,n)], [-1,0,1], nx,ny)
-    B = spdiags([pad1(-1,n), pad1(1,n)], [-1,1], nx,ny)
-    C = spdiags([pad1(-1,n), pad1(1,n)], [1,-1], nx,ny)
+    inc1 = inc_calls(tracker1)
+    inc2 = inc_calls(tracker2)
+    
+    @inc1
+    def foo(*args, **kwargs):
+        print('foo called %d time(s)...'%(tracker1['foo']),end='')
+        print('Latest call with args="%s", kwargs="%s"'%(str(args), str(kwargs)))
 
-    A2 = bmat([[A if i == j else None for j in range(ny)] for i in range(nx)])
-    B2 = bmat(eval(symdiag([(n-1)*['B'],(n-1)*['C']], [-1,1])))
-   
-    D = bmat([[A2,B2],[None,None]])
+    @inc2
+    def bar(a,b):
+        print('bar called %d time(s)...'%(tracker2['bar']),end='')
+        print('Latest call with a="%s", b="%s"'%(str(a), str(b)))
 
-    pretty_print(D.toarray(), blocks=[nx,ny])
+    @inc1
+    def baz():
+        print('baz called %d time(s)...'%(tracker1['baz']))
+
+    @inc2
+    def boom():
+        print('boom called %d times...tracker1="%s"...tracker2="%s"'%(tracker2['boom'], tracker1, tracker2))
+
+    N = 100
+    calls = [int(i) for i in np.round(np.random.random(N) * 3)]
+    funcs = [foo, bar, baz, boom]
+    boom()
+    for c in calls:
+        if( c == 0 ): funcs[0](1,2,key1='yes',key2=(lambda x : x)) 
+        elif( c == 1 ): funcs[1](np.random.random(), np.random.random())
+        else: funcs[c]() 
