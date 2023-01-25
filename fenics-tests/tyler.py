@@ -31,7 +31,7 @@ def pretty_print(A, blocks=[None,None], hor_sep='-', ver_sep='|'):
         print(s)
         if( R != None and np.mod(r,R) == R-1 ):
             print(len(s)*hor_sep)
-
+# symbolic diagonal
 def symdiag(vals, diags):
     vals = np.array(vals)
     diags = np.array(diags)
