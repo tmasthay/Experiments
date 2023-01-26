@@ -84,6 +84,7 @@ class dec_nsp:
                 out_val = func(*args, **kwargs) 
                 decorator_action(out_val, d[obj_str][f_str], \
                     *args, **kwargs)
+                return out_val
             return helper
         return dec
 
@@ -97,7 +98,7 @@ class dec_nsp:
         if( s in dec_nsp.env.keys() ):
             return dec_nsp.env[s]
         else:
-            return dict()
+            return None
 
     def report_meta(obj):
          s = str(obj)

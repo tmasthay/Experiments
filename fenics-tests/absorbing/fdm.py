@@ -66,7 +66,6 @@ class Solver:
         for (k,tt) in enumerate(self.t):
             for (j,yy) in enumerate(self.y):
                 for (i,xx) in enumerate(self.x):
-                    print('(%d,%d) of %s'%(k,i+j*self.ny,dest_array.shape))
                     dest_array[k,i + j * self.ny] = src_lambda(xx,yy,tt)
         if( csc ):
             exec('self.%s = csc_array(dest_array)'%(field_name.replace('self.','')))
@@ -110,29 +109,41 @@ class Solver:
         self.S3 = (self.alpha4 + self.theta * (1.0 - self.alpha4)) * self.M
 
     def __computeLU(self, method='COLAMD'):
-        pass
+        self.inv = linalg.splu(self.step_mat)
 
-    def __build_rhs(self):
-        self.__eval_temporal_spatial_field('f1', 'F1', csc=False)
-        self.__eval_temporal_spatial_field('f2', 'F2', csc=False)
-        self.F = csc_array(vstack([f1,f2]))
+    def __build_rhs(self, time_step):
+        talpha = (1-self.alpha3) * self.t[time_step] + \
+            self.alpha3 * self.t[time_step-1]
+        self.f1_curr = lambda x,y: self.f1(x,y,talpha)
+        self.f2_curr = lambda x,y: self.f2(x,y,talpha)
+        self.__eval_spatial_field('f1_curr', 'F1', csc=False)
+        self.__eval_spatial_field('f2_curr', 'F2', csc=False)
+        self.F = csc_array(vstack([self.F1,self.F2]))
+        self.rhs = self.F \
+            + self.S1 * self.disp_prev \
+            + self.S2 * self.vel_prev \
+            + self.S3 * self_accel_prev
 
     def __set_initial_condition(self):
-        self.disp = lil_matrix((self.nt, 2*self.nx*self.ny))
- 
+        self.accel_prev = lil_matrix((2*self.nx*self.ny,1))
+        self.vel_prev = lil_matrix((2*self.nx*self.ny,1))
+        self.disp_prev = lil_matrix((2*self.nx*self.ny,1))
+        self.disp = lil_matrix((2*self.nx*self.ny,1))
+    
+    @inc_obj('bound')
     def __setup(self):
         self.__create_mesh()
         self.__build_matrices()
-        self.__build_rhs()
         self.__set_initial_condition()
         self.__computeLU()
 
-    def solve(self):
+    def solve(self, time_step):
         t = time.time()
-        self.__setup()
+        self.__build_rhs(time_step)
+        print(self.inv.solve(self.rhs))
         print(t - time.time())
 
 if( __name__ == "__main__" ):
     u = Solver(nx=7,ny=7)
-    u.solve()
+    u.solve(1)
     pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])
