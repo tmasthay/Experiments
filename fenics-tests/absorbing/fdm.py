@@ -20,9 +20,9 @@ class Solver:
         self.rho = kw.get('rho', 1.0)
         self.nx = kw.get('nx', 100)
         self.ny = kw.get('ny', 100)
-        self.ax = kw.get('ax', 0.0)
+        self.ax = kw.get('ax', -1.0)
         self.bx = kw.get('bx', 1.0)
-        self.ay = kw.get('ay', 0.0)
+        self.ay = kw.get('ay', -1.0)
         self.by = kw.get('by', 1.0)
         self.nt = kw.get('nt', 1000) + 1
         self.dt = kw.get('dt', 0.001)
