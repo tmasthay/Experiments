@@ -28,8 +28,8 @@ class Solver:
         self.by = kw.get('by', 1.0)
         self.nt = kw.get('nt', 1000) + 1
         self.dt = kw.get('dt', 0.001)
-        self.f1 = kw.get('f1', lambda x,y,t : 0.0)
-        self.f2 = kw.get('f2', lambda x,y,t : 0.0)
+        self.f1 = kw.get('f1', rtgs())
+        self.f2 = kw.get('f2', rtgs())
         self.spec_rad = kw.get('spec_rad', 0.75)
         self.T = (self.nt - 1) * self.dt
         self.dx = (self.bx - self.ax) / (self.nx - 1)
