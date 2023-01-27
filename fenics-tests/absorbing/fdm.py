@@ -113,6 +113,11 @@ class Solver:
         self.S2 = self.gamma * (1.0 - self.alpha4) * self.M
         self.S3 = (self.alpha4 + self.theta * (1.0 - self.alpha4)) * self.M
 
+        tmp = time.time()
+        print('Computing evals')
+        evals, evecs = linalg.eigs(self.step_mat, k=390)
+        print('Took %f seconds'%(time.time() - tmp))
+        input('\n'.join(['%.5e'%e for e in evals]))
     @dec_nsp.inc_timer('bound')
     def __computeLU(self, method='COLAMD'):
         self.inv = linalg.splu(self.step_mat, permc_spec=method)
