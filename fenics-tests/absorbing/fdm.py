@@ -126,7 +126,7 @@ class Solver:
         self.rhs = self.F \
             + self.S1.dot(self.disp_prev) \
             + self.S2.dot(self.vel_prev) \
-            + self.S3.dot(self.accel_prev)
+        + self.S3.dot(self.accel_prev)
 
     @dec_nsp.inc_timer('bound')
     def __set_initial_condition(self):
@@ -140,7 +140,7 @@ class Solver:
         self.__set_initial_condition()
         self.__build_matrices()
         self.__computeLU()
-
+    
     @dec_nsp.inc_timer('bound')
     def __advance_fields(self):
         tmp = copy.copy(self.accel_prev)
@@ -154,40 +154,46 @@ class Solver:
             )
         self.disp_prev = copy.copy(self.disp)
 
-    @dec_nsp.inc_timer('bound')
-    def __plot_step(self, plot_every):
-        if( plot_every < np.inf and np.mod(time_step, plot_every) == 0 ):
-            t = time.time()
-            tmp = self.disp.toarray()
-            first_comp = tmp[:self.nx*self.ny].reshape((self.nx,self.ny))
-            second_comp = tmp[self.nx*self.ny:].reshape((self.nx,self.ny))
-            plt.figure(1)
-            plt.imshow(first_comp, origin='lower')
-            plt.title('X comp (step,nt,t)=(%d,%d,%f)'%(
-                time_step,self.nt,self.t[time_step]))
-            plt.savefig('x-%d.pdf'%(time_step))
-            plt.imshow(second_comp, origin='lower')
-            plt.title('Y comp (step,nt,t)=(%d,%d,%f)'%(
-                time_step,self.nt,self.t[time_step]))
-            plt.savefig('y-%d.pdf'%(time_step))
-            plot_time = time.time() - t
-            print('Plot within solve %d -- %f seconds'%(time_step, plot_time))
+    @dec_nsp.inc_timer('bound', True)
+    def __plot_step(self, time_step):
+        tmp = self.disp.toarray()
+        first_comp = tmp[:self.nx*self.ny].reshape((self.nx,self.ny))
+        second_comp = tmp[self.nx*self.ny:].reshape((self.nx,self.ny))
+
+        plt.figure(1)
+        plt.imshow(first_comp, origin='lower')
+        plt.title('X comp (step,nt,t)=(%d,%d,%f)'%(
+            time_step,self.nt,self.t[time_step]))
+        plt.colorbar()
+        plt.savefig('x-%d.pdf'%(time_step))
+        plt.clf()
+
+        plt.figure(1)
+        plt.imshow(second_comp, origin='lower')
+        plt.title('Y comp (step,nt,t)=(%d,%d,%f)'%(
+            time_step,self.nt,self.t[time_step]))
+        plt.colorbar()
+        plt.savefig('y-%d.pdf'%(time_step))
+        plt.clf()
+
+    @dec_nsp.inc_timer('bound', False)
+    def __take_step(self, time_step):
+        self.__build_rhs(time_step)
+        self.disp = csc_array(self.inv.solve(self.rhs.toarray()))
+        self.__advance_fields()
     
-    @dec_nsp.inc_timer('bound')
+    #@dec_nsp.inc_timer('bound')
     def solve(self, time_step, plot_every=1):
         meta = dec_nsp.get_meta(self)
         if( meta == None \
             or True not in ['__setup' in k for k in meta.keys()] ):
             self.__setup()
-        if( time_step == 1 ):
-            t = time.time()
-        self.__build_rhs(time_step)
-        self.disp = csc_array(self.inv.solve(self.rhs.toarray()))
-        self.__advance_fields()
-        self.__plot_step(plot_every)
+        self.__take_step(time_step)
+        if( np.mod(time_step, plot_every) == 0 ):
+            self.__plot_step(time_step)
 
 if( __name__ == "__main__" ):
     u = Solver(nx=7,ny=7, f1=(lambda x,y,t: x + y))
     for (i,tt) in enumerate(u.t): 
-        u.solve(i, verbose=10, plot_every=100)
+        u.solve(i, plot_every=100)
     #pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])

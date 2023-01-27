@@ -97,7 +97,7 @@ class dec_nsp:
     def inc_obj(obj='bound', verbose=False):
         def decorator_action(f_out, d, t, *args, **kwargs):
             d['calls'] = 1 if 'calls' not in d.keys() else d['calls'] + 1
-        return dec_nsp.dec_obj(obj, decorator_action)
+        return dec_nsp.dec_obj(obj, verbose, decorator_action)
 
     def inc_timer(obj='bound', verbose=False):
         def decorator_action(f_out, d, t, *args, **kwargs):
@@ -107,7 +107,7 @@ class dec_nsp:
             else:
                 d['calls'] += 1
                 d['time'].append(t)
-        return dec_nsp.dec_obj(obj, decorator_action)
+        return dec_nsp.dec_obj(obj, verbose, decorator_action)
     
     def get_meta(obj):
         s = str(obj)
