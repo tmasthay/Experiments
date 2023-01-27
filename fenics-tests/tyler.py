@@ -61,7 +61,7 @@ class dec_nsp:
             func(*args, **kwargs)
         return helper
 
-    def dec_obj(obj='bound', decorator_action=(lambda f,d,t,*a,**k: \
+    def dec_obj(obj='bound', verbose=False, decorator_action=(lambda f,d,t,*a,**k: \
             f(*a,*k))):
         bound = ['bound', 'class']
         def dec(func):
@@ -87,16 +87,19 @@ class dec_nsp:
                 t = time.time() - t
                 decorator_action(out_val, d[obj_str][f_str], t, \
                     *args, **kwargs)
+                if( verbose ):
+                    print('(obj,func,call_time)=(%s,%s,%f)'%(obj_str,
+                        f_str.split(' ')[1], t))
                 return out_val
             return helper
         return dec
 
-    def inc_obj(obj='bound'):
+    def inc_obj(obj='bound', verbose=False):
         def decorator_action(f_out, d, t, *args, **kwargs):
             d['calls'] = 1 if 'calls' not in d.keys() else d['calls'] + 1
         return dec_nsp.dec_obj(obj, decorator_action)
 
-    def inc_timer(obj='bound'):
+    def inc_timer(obj='bound', verbose=False):
         def decorator_action(f_out, d, t, *args, **kwargs):
             if( 'calls' not in d.keys() ): 
                 d['calls'] = 1

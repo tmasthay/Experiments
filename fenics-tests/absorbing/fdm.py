@@ -2,8 +2,18 @@ import numpy as np
 from tyler import *
 from scipy.sparse import *
 import time
+import copy
+import matplotlib.pyplot as plt
 
 class Solver:
+    def __create_mesh(self):
+        self.t = np.linspace(0.0, self.T, self.nt)
+        self.x = np.linspace(self.ax, self.bx, self.nx)
+        self.y = np.linspace(self.ay, self.by, self.ny)
+        self.x_mesh, self.y_mesh = np.meshgrid(self.x, self.y)
+        assert( self.x[1] - self.x[0] == self.dx )
+        assert( self.y[1] - self.y[0] == self.dy )
+
     def __init__(self, **kw):
         self.l = kw.get('l', 1.0)
         self.mu = kw.get('mu', 1.0)
@@ -32,19 +42,9 @@ class Solver:
         self.eta = 2.0 / (self.dt**2 * (1.0-self.alpha2))
         self.gamma = -2.0 / (self.dt*(1.0-self.alpha2))
         self.theta = -self.alpha2 / (1.0 - self.alpha2)
+        self.__create_mesh()
 
-    def __reset_calls(self, key):
-        if( key in d.keys() ):
-            d[key] = 0 
-
-    def __create_mesh(self):
-        self.t = np.linspace(0.0, self.T, self.nt)
-        self.x = np.linspace(self.ax, self.bx, self.nx)
-        self.y = np.linspace(self.ay, self.by, self.ny)
-        self.x_mesh, self.y_mesh = np.meshgrid(self.x, self.y)
-        assert( self.x[1] - self.x[0] == self.dx )
-        assert( self.y[1] - self.y[0] == self.dy )
-
+    @dec_nsp.inc_timer('bound')
     def __eval_spatial_field(self, u, field_name, csc=False):
         assert( type(field_name) == str )
         src_lambda = u if type(u) != str else \
@@ -58,6 +58,7 @@ class Solver:
         else:
             exec('self.%s = dest_array'%(field_name.replace('self.','')))
 
+    @dec_nsp.inc_timer('bound')
     def __eval_temporal_spatial_field(self, u, field_name, csc=False):
         assert( type(field_name) == str )
         src_lambda = u if type(u) != str else \
@@ -71,7 +72,8 @@ class Solver:
             exec('self.%s = csc_array(dest_array)'%(field_name.replace('self.','')))
         else:
             exec('self.%s = dest_array'%(field_name.replace('self.','')))
-   
+  
+    @dec_nsp.inc_timer('bound') 
     def __build_matrices(self):
         n = min(self.nx,self.ny)
  
@@ -108,9 +110,11 @@ class Solver:
         self.S2 = self.gamma * (1.0 - self.alpha4) * self.M
         self.S3 = (self.alpha4 + self.theta * (1.0 - self.alpha4)) * self.M
 
+    @dec_nsp.inc_timer('bound')
     def __computeLU(self, method='COLAMD'):
         self.inv = linalg.splu(self.step_mat, permc_spec=method)
 
+    @dec_nsp.inc_timer('bound')
     def __build_rhs(self, time_step):
         talpha = (1-self.alpha3) * self.t[time_step] + \
             self.alpha3 * self.t[time_step-1]
@@ -124,34 +128,66 @@ class Solver:
             + self.S2.dot(self.vel_prev) \
             + self.S3.dot(self.accel_prev)
 
+    @dec_nsp.inc_timer('bound')
     def __set_initial_condition(self):
         self.accel_prev = csc_array((2*self.nx*self.ny,1))
         self.vel_prev = csc_array((2*self.nx*self.ny,1))
         self.disp_prev = csc_array((2*self.nx*self.ny,1))
         self.disp = csc_array((2*self.nx*self.ny,1))
     
-    @dec_nsp.inc_obj('bound')
+    @dec_nsp.inc_timer('bound')
     def __setup(self):
-        self.__create_mesh()
         self.__set_initial_condition()
         self.__build_matrices()
         self.__computeLU()
 
-    @dec_nsp.inc_obj('bound')
-    def solve(self, time_step, verbose=True, plot=True):
+    @dec_nsp.inc_timer('bound')
+    def __advance_fields(self):
+        tmp = copy.copy(self.accel_prev)
+        self.accel_prev = self.eta * (self.disp - self.disp_prev)  \
+            + self.gamma * self.vel_prev \
+            + self.theta * self.accel_prev
+        self.vel_prev = self.vel_prev \
+            + self.dt * (
+                (1-self.alpha1) * self.accel_prev \
+                + self.alpha1 * tmp
+            )
+        self.disp_prev = copy.copy(self.disp)
+
+    @dec_nsp.inc_timer('bound')
+    def __plot_step(self, plot_every):
+        if( plot_every < np.inf and np.mod(time_step, plot_every) == 0 ):
+            t = time.time()
+            tmp = self.disp.toarray()
+            first_comp = tmp[:self.nx*self.ny].reshape((self.nx,self.ny))
+            second_comp = tmp[self.nx*self.ny:].reshape((self.nx,self.ny))
+            plt.figure(1)
+            plt.imshow(first_comp, origin='lower')
+            plt.title('X comp (step,nt,t)=(%d,%d,%f)'%(
+                time_step,self.nt,self.t[time_step]))
+            plt.savefig('x-%d.pdf'%(time_step))
+            plt.imshow(second_comp, origin='lower')
+            plt.title('Y comp (step,nt,t)=(%d,%d,%f)'%(
+                time_step,self.nt,self.t[time_step]))
+            plt.savefig('y-%d.pdf'%(time_step))
+            plot_time = time.time() - t
+            print('Plot within solve %d -- %f seconds'%(time_step, plot_time))
+    
+    @dec_nsp.inc_timer('bound')
+    def solve(self, time_step, plot_every=1):
         meta = dec_nsp.get_meta(self)
         if( meta == None \
             or True not in ['__setup' in k for k in meta.keys()] ):
             self.__setup()
-        t = time.time()
+        if( time_step == 1 ):
+            t = time.time()
         self.__build_rhs(time_step)
-        exec_time = time.time() - t
-        if( verbose ):
-            print('Solve %d -- %f seconds'%(time_step, exec_time))
-        if( plot ):
-            plt.p
+        self.disp = csc_array(self.inv.solve(self.rhs.toarray()))
+        self.__advance_fields()
+        self.__plot_step(plot_every)
 
 if( __name__ == "__main__" ):
     u = Solver(nx=7,ny=7, f1=(lambda x,y,t: x + y))
-    u.solve(1, verbose=True)
+    for (i,tt) in enumerate(u.t): 
+        u.solve(i, verbose=10, plot_every=100)
     #pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])
