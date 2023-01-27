@@ -1,0 +1,15 @@
+l=0.0
+mu=0.0
+rho=1.0
+nx=20
+ny=20
+ax=-1.0
+bx=1.0
+ay=-1.0
+by=1.0
+nt=100
+dt=0.001
+f1=rtgs()
+f2=rtgs()
+damp=damp2()
+spec_rad=0.1
