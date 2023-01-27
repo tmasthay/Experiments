@@ -101,13 +101,9 @@ class dec_nsp:
             if( 'calls' not in d.keys() ): 
                 d['calls'] = 1
                 d['time'] = [t]
-                d['args'] = [args]
-                d['kwargs'] = [kwargs]
             else:
                 d['calls'] += 1
                 d['time'].append(t)
-                d['args'].append(args)
-                d['kwargs'].append(kwargs)
         return dec_nsp.dec_obj(obj, decorator_action)
     
     def get_meta(obj):
