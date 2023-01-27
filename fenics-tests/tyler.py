@@ -46,6 +46,70 @@ def symdiag(vals, diags):
     V = ['[' + ','.join(e) + ']' for e in V]
     return '[' + ',\n'.join(V) + ']'
 
+def rtgs(**kw):
+    rick_t0 = kw.get('rick_t0', 0.0)
+    rick_sig = kw.get('rick_sig', 1.0)
+
+    gx_mu = kw.get('gx_mu', 1.0)
+    gx_sig = kw.get('gx_sig', 1.0)
+
+    gy_mu = kw.get('gy_mu', 1.0)
+    gy_sig = kw.get('gy_sig', 1.0)
+
+    amp = kw.get('amp', 1.0)
+
+    def helper(x,y,t):
+        tau = (t-rick_t0) / rick_sig
+        x_tilde = (x - gx_mu) / gx_sig
+        y_tilde = (y - gy_mu) / gy_sig
+        return amp * (1 - tau**2) * np.exp(-tau**2 - x_tilde**2 - y_tilde**2)
+    return helper
+
+def damp1(**kw):
+    a = kw.get('a', -1.0)
+    b = kw.get('b', 1.0)
+    p = kw.get('p', 0.1)
+    s = kw.get('s', 10.0)
+
+    def helper(x):
+        c = (1-p) * a + p * b
+        d = p * a + (1-p) * b
+
+        if( x < c ):
+            return np.exp(-(c-x) * s)
+        elif( x > d ):
+            return np.exp(-(x-d) * s)
+        else:
+            return 1.0
+    return helper
+
+def damp2(**kw):
+    ax = kw.get('ax', -1.0)
+    bx = kw.get('bx', 1.0)
+    px = kw.get('px', 0.3)
+    sx = kw.get('sx', 1.0)
+
+    ay = kw.get('ay', -1.0)
+    by = kw.get('by', 1.0)
+    py = kw.get('py', 0.3)
+    sy = kw.get('sy', 1.0)
+
+    f1 = damp1(a=ax, b=bx, p=px, s=sx)
+    f2 = damp1(a=ay, b=by, p=py, s=sy)
+
+    def helper(x,y):
+        return f1(x) * f2(y)
+    return helper
+
+def read_input_dict(file_name):
+    l = open(file_name).read().split('\n')
+    while( '' in l ):
+        l.remove('')
+    u = [ll.split('=') for ll in l]
+    print(u)
+    return eval('{' + '\n'.join(["'%s': %s,"%(ll[0],ll[1]) for ll in u]) + '}')
+    
+
 class dec_nsp:
     env = dict()
 

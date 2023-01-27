@@ -11,9 +11,9 @@ class Solver:
         self.x = np.linspace(self.ax, self.bx, self.nx)
         self.y = np.linspace(self.ay, self.by, self.ny)
         self.x_mesh, self.y_mesh = np.meshgrid(self.x, self.y)
-        if( (self.x[1] - self.x[0] - self.dx) > np.finfo(float).eps * self.dx ):
+        if( abs(self.x[1] - self.x[0] - self.dx) > np.finfo(float).eps ):
             raise ValueError('obs_dx=%f, stored_dx=%f'%(self.x[1] - self.x[0], self.dx))
-        if( (self.y[1] - self.y[0] - self.dy) > np.finfo(float).eps * self.dy ):
+        if( abs(self.y[1] - self.y[0] - self.dy) > np.finfo(float).eps ):
             raise ValueError('obs_dy=%f, stored_dy=%f'%(self.y[1] - self.y[0], self.dy))
 
     def __init__(self, **kw):
@@ -30,6 +30,7 @@ class Solver:
         self.dt = kw.get('dt', 0.001)
         self.f1 = kw.get('f1', rtgs())
         self.f2 = kw.get('f2', rtgs())
+        self.damp = kw.get('damp', damp2())
         self.spec_rad = kw.get('spec_rad', 0.75)
         self.T = (self.nt - 1) * self.dt
         self.dx = (self.bx - self.ax) / (self.nx - 1)
@@ -136,12 +137,20 @@ class Solver:
         self.vel_prev = csc_array((2*self.nx*self.ny,1))
         self.disp_prev = csc_array((2*self.nx*self.ny,1))
         self.disp = csc_array((2*self.nx*self.ny,1))
+
+    @dec_nsp.inc_timer('bound')
+    def __eval_damper(self):
+        self.__eval_spatial_field('damp', 'D1')
+        self.__eval_spatial_field('damp', 'D2')
+        self.D = csc_array(vstack([self.D1, self.D2]))
     
     @dec_nsp.inc_timer('bound')
     def __setup(self):
         self.__set_initial_condition()
         self.__build_matrices()
         self.__computeLU()
+        self.__plot_step(0)
+        print('Setup plot made')
     
     @dec_nsp.inc_timer('bound')
     def __advance_fields(self):
@@ -159,6 +168,7 @@ class Solver:
     @dec_nsp.inc_timer('bound', True)
     def __plot_step(self, time_step):
         tmp = self.disp.toarray()
+        print('%s...%f'%(str(tmp.shape), np.linalg.norm(tmp)))
         first_comp = tmp[:self.nx*self.ny].reshape((self.nx,self.ny))
         second_comp = tmp[self.nx*self.ny:].reshape((self.nx,self.ny))
 
@@ -178,7 +188,7 @@ class Solver:
         plt.savefig('y-%d.pdf'%(time_step))
         plt.clf()
 
-    @dec_nsp.inc_timer('bound', False)
+    @dec_nsp.inc_timer('bound', True)
     def __take_step(self, time_step):
         self.__build_rhs(time_step)
         self.disp = csc_array(self.inv.solve(self.rhs.toarray()))
@@ -195,7 +205,8 @@ class Solver:
             self.__plot_step(time_step)
 
 if( __name__ == "__main__" ):
-    u = Solver(nx=7,ny=7, f1=(lambda x,y,t: x + y))
+    u = Solver(**read_input_dict('input.txt'))
     for (i,tt) in enumerate(u.t): 
-        u.solve(i, plot_every=100)
+        if( i != 0 ):
+            u.solve(i, plot_every=1)
     #pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])
