@@ -11,8 +11,10 @@ class Solver:
         self.x = np.linspace(self.ax, self.bx, self.nx)
         self.y = np.linspace(self.ay, self.by, self.ny)
         self.x_mesh, self.y_mesh = np.meshgrid(self.x, self.y)
-        assert( self.x[1] - self.x[0] == self.dx )
-        assert( self.y[1] - self.y[0] == self.dy )
+        if( (self.x[1] - self.x[0] - self.dx) > np.finfo(float).eps * self.dx ):
+            raise ValueError('obs_dx=%f, stored_dx=%f'%(self.x[1] - self.x[0], self.dx))
+        if( (self.y[1] - self.y[0] - self.dy) > np.finfo(float).eps * self.dy ):
+            raise ValueError('obs_dy=%f, stored_dy=%f'%(self.y[1] - self.y[0], self.dy))
 
     def __init__(self, **kw):
         self.l = kw.get('l', 1.0)
