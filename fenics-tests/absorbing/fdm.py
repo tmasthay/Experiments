@@ -99,9 +99,9 @@ class Solver:
         A2 = bmat([[A if i == j else None for j in range(self.ny)] for i in range(self.nx)])
         B2 = bmat(eval(symdiag([(n-1)*['B'],(n-1)*['C']], [-1,1])))
        
-        self.stiff = bmat([[A2,B2],[self.dx**2/self.dy**2*B2,A2]])
+        self.stiff = csc_array(bmat([[A2,B2],[self.dx**2/self.dy**2*B2,A2]]))
 
-        self.M = spdiags([self.rho * np.ones(self.stiff.shape[0])], [0])
+        self.M = csc_array(spdiags([self.rho * np.ones(self.stiff.shape[0])], [0]))
 
         self.step_mat = self.eta * (1-self.alpha4) * self.M + (1.0 - self.alpha3) * self.stiff
         self.S1 = -self.eta * (1.0 - self.alpha4) * self.M + self.alpha3 * self.stiff
@@ -109,7 +109,7 @@ class Solver:
         self.S3 = (self.alpha4 + self.theta * (1.0 - self.alpha4)) * self.M
 
     def __computeLU(self, method='COLAMD'):
-        self.inv = linalg.splu(self.step_mat)
+        self.inv = linalg.splu(self.step_mat, permc_spec=method)
 
     def __build_rhs(self, time_step):
         talpha = (1-self.alpha3) * self.t[time_step] + \
@@ -120,30 +120,38 @@ class Solver:
         self.__eval_spatial_field('f2_curr', 'F2', csc=False)
         self.F = csc_array(vstack([self.F1,self.F2]))
         self.rhs = self.F \
-            + self.S1 * self.disp_prev \
-            + self.S2 * self.vel_prev \
-            + self.S3 * self_accel_prev
+            + self.S1.dot(self.disp_prev) \
+            + self.S2.dot(self.vel_prev) \
+            + self.S3.dot(self.accel_prev)
 
     def __set_initial_condition(self):
-        self.accel_prev = lil_matrix((2*self.nx*self.ny,1))
-        self.vel_prev = lil_matrix((2*self.nx*self.ny,1))
-        self.disp_prev = lil_matrix((2*self.nx*self.ny,1))
-        self.disp = lil_matrix((2*self.nx*self.ny,1))
+        self.accel_prev = csc_array((2*self.nx*self.ny,1))
+        self.vel_prev = csc_array((2*self.nx*self.ny,1))
+        self.disp_prev = csc_array((2*self.nx*self.ny,1))
+        self.disp = csc_array((2*self.nx*self.ny,1))
     
-    @inc_obj('bound')
+    @dec_nsp.inc_obj('bound')
     def __setup(self):
         self.__create_mesh()
-        self.__build_matrices()
         self.__set_initial_condition()
+        self.__build_matrices()
         self.__computeLU()
 
-    def solve(self, time_step):
+    @dec_nsp.inc_obj('bound')
+    def solve(self, time_step, verbose=True, plot=True):
+        meta = dec_nsp.get_meta(self)
+        if( meta == None \
+            or True not in ['__setup' in k for k in meta.keys()] ):
+            self.__setup()
         t = time.time()
         self.__build_rhs(time_step)
-        print(self.inv.solve(self.rhs))
-        print(t - time.time())
+        exec_time = time.time() - t
+        if( verbose ):
+            print('Solve %d -- %f seconds'%(time_step, exec_time))
+        if( plot ):
+            plt.p
 
 if( __name__ == "__main__" ):
-    u = Solver(nx=7,ny=7)
-    u.solve(1)
-    pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])
+    u = Solver(nx=7,ny=7, f1=(lambda x,y,t: x + y))
+    u.solve(1, verbose=True)
+    #pretty_print(u.stiff.toarray(), blocks=[u.nx, u.ny])

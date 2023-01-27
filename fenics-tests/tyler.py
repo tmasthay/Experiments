@@ -1,6 +1,7 @@
 from subprocess import check_output as co
 import numpy as np
 from scipy.sparse import spdiags, coo_matrix, bmat
+import time
 
 def pull_shell(cmd, mode=''):
     txt = co(cmd, shell=True).decode('utf-8')
@@ -60,7 +61,7 @@ class dec_nsp:
             func(*args, **kwargs)
         return helper
 
-    def dec_obj(obj='bound', decorator_action=(lambda f,d,*a,**k: \
+    def dec_obj(obj='bound', decorator_action=(lambda f,d,t,*a,**k: \
             f(*a,*k))):
         bound = ['bound', 'class']
         def dec(func):
@@ -81,17 +82,33 @@ class dec_nsp:
                     d[obj_str] = dict()
                 if( f_str not in d[obj_str] ):
                     d[obj_str][f_str] = dict()
+                t = time.time()
                 out_val = func(*args, **kwargs) 
-                decorator_action(out_val, d[obj_str][f_str], \
+                t = time.time() - t
+                decorator_action(out_val, d[obj_str][f_str], t, \
                     *args, **kwargs)
                 return out_val
             return helper
         return dec
 
     def inc_obj(obj='bound'):
-        def decorator_action(f_out, d, *args, **kwargs):
+        def decorator_action(f_out, d, t, *args, **kwargs):
             d['calls'] = 1 if 'calls' not in d.keys() else d['calls'] + 1
-        return dec_nsp.dec_obj(obj, decorator_action) 
+        return dec_nsp.dec_obj(obj, decorator_action)
+
+    def inc_timer(obj='bound'):
+        def decorator_action(f_out, d, t, *args, **kwargs):
+            if( 'calls' not in d.keys() ): 
+                d['calls'] = 1
+                d['time'] = [t]
+                d['args'] = [args]
+                d['kwargs'] = [kwargs]
+            else:
+                d['calls'] += 1
+                d['time'].append(t)
+                d['args'].append(args)
+                d['kwargs'].append(kwargs)
+        return dec_nsp.dec_obj(obj, decorator_action)
     
     def get_meta(obj):
         s = str(obj)
