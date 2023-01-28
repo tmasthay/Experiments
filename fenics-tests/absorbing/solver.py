@@ -5,7 +5,7 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 
 # Create a 2D square mesh with 5x5 elements
-mesh = UnitSquareMesh(5, 5)
+mesh = UnitSquareMesh(50,50)
 
 # Define function space for displacement and stress
 V = VectorFunctionSpace(mesh, 'P', 1)
@@ -65,17 +65,27 @@ b_static = assemble(L_static)
 
 fig, ax = plt.subplots()
 
-global cb
-def plot_step(i, obj):
-    global cb
-    if( i > 0 ):
+N = int(np.round(T/dt)) + 1
+global cb, cb_min, cb_max
+cb_min = 0.0
+cb_max = 0.0
+def plot_step(i, obj, dynamic=True):
+    global cb, cb_min, cb_max
+    if( i > 0 and dynamic ):
         cb.remove()
     ux = project(dot(obj, Expression(('1.0', '0.0'), degree=1)), W)
     p = plot(ux)
     plt.title('Displacement at step %d, t=%f'%(i, i*dt))
-    cb = fig.colorbar(p)
+    if( dynamic ):
+        cb = fig.colorbar(p)
+    elif( i == 0 ):
+        y = np.load('colorbar.npy')
+        cb = fig.colorbar(y[0])
+    if( i == N - 1 ):
+        np.save('colorbar.npy', [p])
+    
 
-def update(i):
+def update(i, dynamic=True):
     if( i == 0 ):
         plot_step(0, upp)
     elif( i == 1 ):
@@ -97,7 +107,7 @@ def update(i):
         print('Solving system: %f seconds'%(tmp2 - tmp1))
     
         # Plot solution
-        plot_step(i,u)
+        plot_step(i,u, dynamic)
         tmp3 = time.time()
         print('Plotting solution: %f seconds'%(tmp3 - tmp2))
     
@@ -105,8 +115,6 @@ def update(i):
         up.assign(u)
         tmp4 = time.time()
         print('Copying data: %f seconds'%(tmp4 - tmp3))
-
-N = int(np.round(T/dt)) + 1
-ani = FuncAnimation(fig, update, frames=range(N), repeat=False)
+ani = FuncAnimation(fig, lambda i : update(i,True), frames=range(N), repeat=False)
 ani.save('animation.gif', writer="imagemagick")
 
