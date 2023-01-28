@@ -17,6 +17,7 @@ u_test = TestFunction(V)
 
 #Initialize previous time steps
 u = Function(V)
+aux = Function(V)
 up = Function(V)
 upp = Function(V)
 up.assign(Constant((0.0,0.0)))
@@ -34,14 +35,14 @@ def sigma(u):
     return lmbda * tr(grad(u)) * Identity(2) + 2*mu*sym(grad(u))
 
 # Define time step and end time
-dt = 0.01
-T = 1
+dt = 0.1
+T = 10
 
 # Define forcing term and boundary condition
-sig_x = 0.1
-sig_y = 0.1
-sig_t = 1.0
-amp = 1.0
+sig_x = 0.01
+sig_y = 0.01
+sig_t = 2.0
+amp = 10.0
 x0 = 0.5
 y0 = 0.5
 t0 = 0.0
@@ -51,9 +52,26 @@ f_str = '%.8f * exp(-%.8f * pow((x[0]-%.8f), 2) - %.8f * %s'%(
     'pow((x[1]-%.8f),2))'%y0)
 f_static = Expression((f_str, f_str), degree=deg)
 f_static_evaled = project(f_static, V)
+
 def f(t):
-    return Constant(dt**2*(1-(t-t0)**2) * np.exp(-0.5 * ((t-t0) / sig_y)**2))
- 
+    return Constant(dt**2*(1-(t-t0)**2) * np.exp(-0.5 * ((t-t0) / sig_t)**2))
+def g(t):
+    return Constant(dt**2*(1-(t-t0)**2) * np.exp(-0.5 * ((t-t0) / sig_t)**2))
+
+#define damper
+cx = 0.5
+cy = 0.5
+tau = 0.1
+decay_rate = 10.0
+damping_func = lambda idx,c : 'abs(x[%d] - %f) < %f ? %s : 1.0'%(idx,c,tau,
+    'exp(-abs(x[%d] - %f))'%(idx, c))
+damping_str = '(%s) * (%s)'%(damping_func(0,cx), damping_func(0,cy))
+damping_term = Expression((damping_str, damping_str), degree=3)
+damping_term = project(damping_term, V)
+damping_comp = damping_term.split()
+
+gg = np.array([g(tt) for tt in np.linspace(0.0, 10.0, 100)])
+input(gg * max(f_static_evaled.vector().get_local())) 
 bc = DirichletBC(V, Constant((0, 0)), DomainBoundary())
 
 # Define linear elasticity equations
@@ -102,7 +120,17 @@ def update(i, dynamic=True):
         tmp1 = time.time()
         print('Building rhs: %f seconds'%(tmp1 - tmp)) 
     
-        solve(A, u.vector(), b)
+        solve(A, aux.vector(), b)
+
+        aux_comp = aux.split()
+        tmp_aux = as_vector([aux_comp[i] * damping_comp[i] for i in range(len(aux_comp))])
+        input(len(aux_comp))
+        input(len(damping_comp))
+        input(type(aux_comp[0]))
+        input(type(damping_comp[0]))
+        input(type(project(aux_comp[0] * damping_comp[0],V)))
+        input(type(tmp_aux))
+        u.assign(tmp_aux)
         tmp2 = time.time()
         print('Solving system: %f seconds'%(tmp2 - tmp1))
     
@@ -115,6 +143,8 @@ def update(i, dynamic=True):
         up.assign(u)
         tmp4 = time.time()
         print('Copying data: %f seconds'%(tmp4 - tmp3))
+        print(np.linalg.norm(u.vector().get_local()))
+        print(np.linalg.norm(b.get_local()))
 ani = FuncAnimation(fig, lambda i : update(i,True), frames=range(N), repeat=False)
 ani.save('animation.gif', writer="imagemagick")
 
