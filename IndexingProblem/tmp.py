@@ -1,10 +1,4 @@
 import numpy as np
-from itertools import chain, combinations
-
-def get_indices(iterable):
-    s = list(iterable)
-    y = chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
-    return y 
 
 def generate(level):
     if( level == -1 ):
