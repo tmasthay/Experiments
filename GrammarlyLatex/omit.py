@@ -1,7 +1,14 @@
 import re
 import sys
 
+def remove_extra(s):
+    return '\n'.join([e.strip(' \t') for e in s.split('\n') \
+        if len(e.strip(' \t')) > 0])
+
 def remove_latex(text):
+    #Step 0: Get body only
+    text = re.sub(r"(.*?)\\begin\{document\}(.*?)\\end{document}", r"\2", text, flags=re.DOTALL)
+
     # Step 1: Remove all LaTeX environments
     text = re.sub(r"\\begin\{.*?\}\n?(.*?)\\end\{.*?\}", r"", text, flags=re.DOTALL)
 
@@ -38,7 +45,7 @@ if( __name__ == "__main__" ):
     args = parser.parse_args()
 
     # Open and read the input .tex file
-    text = remove_latex(open(args.input,'r').read())
+    text = remove_extra(remove_latex(open(args.input,'r').read()))
 
     # Write the output plaintext to a file
     with open(args.output, 'w') as f:

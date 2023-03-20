@@ -1,8 +1,4 @@
-from omit import remove_latex
-
-def remove_extra(s):
-    return '\n'.join([e.strip(' \t') for e in s.split('\n') \
-        if len(e.strip(' \t')) > 0])
+from omit import remove_latex, remove_extra
 
 def test_remove_latex_environments():
     # Tests removal of all latex environments

@@ -42,7 +42,10 @@ if( __name__ == "__main__" ):
     g_adjoint_state = np.zeros(len(m))
     g_direct = np.zeros(len(m))
     for (i,mm) in enumerate(m):
-        g_adjoint_state[i] = tmp.L_m(tmp.uc, np.array([mm]), tmp.pc)
+        tau = 1.0
+        u_start = tau * (1.0 - np.cos(mm))**(0.2)
+        p_start = tau * np.exp(mm) * np.sin((1.0 - np.cos(mm))**(0.2)) / (5.0 * u_start**(0.8))
+        g_adjoint_state[i] = tmp.L_m(u_start, np.array([mm]), p_start)
         g_direct[i] = direct_gradient_1d(mm)
     
     plt.title("Adjoint State Sanity Check")

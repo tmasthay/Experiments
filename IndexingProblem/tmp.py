@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 def generate(level):
     if( level == -1 ):
@@ -38,10 +39,17 @@ def generate_global_raw_int(max_level):
         return sum([4**e for e in u(n)])
     return helper
  
-max_level = 10
+max_level = 32
 u = generate_global(max_level)
 v = generate_global_raw_int(max_level)
 
-final_seq_no = 100
-for i in range(final_seq_no):
-    print('%s --> %d'%(str(u(i)), v(i)))
+final_seq_no = 10000
+
+idx = int(2**31)
+t = time.time()
+val = v(idx)
+t = time.time() - t
+
+expansion = u(idx)
+print(val)
+print(t)

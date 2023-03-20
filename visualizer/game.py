@@ -22,30 +22,37 @@ def read_dict(filename):
     else:
         return None
         
-def separate_audio(filename):
+def separate_audio(filename, num_comps=15):
     y, sr = librosa.load(filename)
     song_length = len(y) / sr
     y_harmonic, y_percussive = librosa.effects.hpss(y)
     S_harmonic, _ = librosa.magphase(librosa.stft(y_harmonic))
     S_percussive, _ = librosa.magphase(librosa.stft(y_percussive))
-    return S_harmonic, S_percussive, song_length
+    S = np.abs(librosa.stft(y))
+    comp, act = librosa.decompose.decompose(S, n_components=num_comps)
+    return S_harmonic, S_percussive, comp, act, song_length
 
-def extract_data(filename, path=None):
-    if( path != None ):
-        tmp = read_dict(path)
+def extract_data(filename, path=None, n=15):
+    if( path == None ):
+        path = filename.replace('.wav','.json')
+    tmp = read_dict(path)
     if( tmp != None ):
         d = tmp
         d['harmonic'] = np.array(d['harmonic'])
         d['percuss'] = np.array(d['percuss'])
     else:
-        Sh, Sp, song_length = separate_audio(filename)
+        Sh, Sp, comp, act, song_length = separate_audio(filename, n)
         d = {
             'harmonic': Sh.tolist(),
             'percuss': Sp.tolist(),
+            'comp': comp.tolist(),
+            'act': act.tolist(),
             'song_length': song_length }
         save_dict(d, path)
         d['harmonic'] = Sh
         d['percuss'] = Sp
+        d['comp'] = comp
+        d['act'] = act
     wave_obj = sa.WaveObject.from_wave_file(audio_file)
     d.update({'audio_file': wave_obj})
     return d
@@ -53,7 +60,8 @@ def extract_data(filename, path=None):
 def visualize(filename, log_mode=True, scatter=True):
     dict_path = filename.replace('.wav', '')
     print('Extracting data...', end='', file=sys.stderr)
-    d = extract_data(filename, dict_path)
+    num_comps = 15
+    d = extract_data(filename, dict_path, num_comps)
     print('DONE!', file=sys.stderr)
     freq = np.array(range(d['harmonic'].shape[0]))
     if( log_mode ):
@@ -64,6 +72,8 @@ def visualize(filename, log_mode=True, scatter=True):
     fps = num_frames / d['song_length']
     delta_t = 1.0 / fps
     
+    input(d['comp'].shape)
+    input(d['act'].shape)
     fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
     ax1.set_ylim(0.0, np.max(d['harmonic']))
     ax2.set_ylim(0.0, np.max(d['percuss']))
