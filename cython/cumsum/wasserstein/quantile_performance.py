@@ -12,6 +12,7 @@ from quantile import *
 import seaborn as sns
 from quantile_cython import quantile as quantile_cython
 import copy
+from smart_quantile_cython import *
 
 class Dummy:
     def __init__(self, pdf_arg, cdf_arg):
@@ -352,7 +353,135 @@ def go():
         noise_level
     )
 
+def get_flat_subintervals2(x, tol=0.0):
+    idx = np.where(x <= tol)[0]
+    flat_int = []
+    if( len(idx) > 1 ):
+        start = idx[0]
+        prev = idx[0]
+        runner = 1
+        for i in range(1, len(idx)):
+            curr = idx[i]
+            if( curr == prev + 1 ):
+                runner += 1
+            else:
+                if( runner > 2 ):
+                    flat_int.append((start+1, prev-1))
+                start = curr
+            prev = curr
+        if( len(flat_int) > 0 ):
+            return flat_int
+        else:
+            return [(np.inf, np.inf)]
+    else:
+        return [(np.inf, np.inf)]
+
+
+def smart_quantile2(x, pdf, cdf, p, tol=0.0):
+    flat_int = get_flat_subintervals2(pdf)
+    assert( np.min(pdf) >= 0.0 )
+    assert( np.abs( np.max(cdf) - 1.0 ) < 1e-8 )
+    assert( np.abs( np.min(cdf) ) < 1e-8 )
+    assert( np.all([cdf[i] >= cdf[i-1] for i in range(1,len(cdf))]) )
+    nsubs = len(flat_int)
+    sidx = 0
+    N = len(x)
+    P = len(p)
+    q = np.empty(P)
+    q[0] = x[0]
+    q[-1] = x[-1]
+    i = 1
+    i_x = 0
+    flat_int = [(np.inf, np.inf)]
+    for i in range(1,P-1):
+        if( i_x == N - 1 ):
+            q[i:] = x[1]
+            break
+        while( cdf[i_x] > p[i] or p[i] > cdf[i_x+1] ):
+            i_x += 1
+            csub = flat_int[sidx]
+            if( csub[0] <= i_x and i_x <= csub[1] ):
+                print('%d @@@ %d @@@ %d'%(csub[0], i_x, csub[1]))
+                i_x = csub[1] + 1
+                if( sidx < nsubs - 1 ):
+                    sidx += 1
+            if( i_x == N - 1 ):
+                q[i:] = x[1]
+                break
+        if( i_x == N - 1 ):
+            q[i:] = x[1]
+            break
+        delta = cdf[i_x+1] - cdf[i_x]
+        if( delta > 0 ):
+            alpha = (p[i] - cdf[i_x]) / delta
+            q[i] = (1.0 - alpha) * x[i_x] + alpha * x[i_x+1]
+        else:
+            q[i] = x[i_x]
+    return q
+
 if( __name__ == "__main__" ):
-    
+    N = 10
+    x = np.linspace(-5,5,N)
+    dx = x[1]-x[0]
+
+    num_intervals = N // 10
+    fn = 3
+    idx = np.random.choice(N, num_intervals, replace=False)
+    u = np.zeros(N)
+    touched = []
+    for i in idx:
+        val = np.random.random()
+        for j in range(fn):
+            curr = i + j
+            if( curr not in touched and curr < N ):
+                u[curr] = val
+                touched.append(curr)
+    U = cumulative_trapezoid(u, dx=dx, initial=0.0)
+    U /= U[-1]
+
+    p = np.linspace(0,1,N+1)
+    tol = 0.0
+
+    num_trials = 100
+    py_time = 0
+    cy_time = 0
+    for trial in range(num_trials):
+        # idx = np.random.choice(N, num_intervals, replace=False)
+        # u = np.zeros(N)
+        # touched = []
+        # for i in idx:
+        #     val = np.random.random()
+        #     for j in range(fn):
+        #         curr = i + j
+        #         if( curr not in touched and curr < N ):
+        #             u[curr] = val
+        #             touched.append(curr)
+        u = np.random.random(N)
+        U = cumulative_trapezoid(u, dx=dx, initial=0.0)
+        U /= U[-1]
+        t = time.time()
+        q_py = smart_quantile2(x, u, U, p, tol)
+        py_time += time.time() - t
+        t = time.time() 
+        q_cy = smart_quantile(x, u, U, p, tol)
+        cy_time += time.time() - t
+
+
+    plt.subplot(2,1,1)
+    plt.plot(x, U, label='CDF')
+    plt.plot(x, u, label='PDF')
+    plt.legend()
+
+    plt.subplot(2,1,2)
+    plt.plot(p, q_py, label='Python', color='blue')
+    plt.plot(p, q_cy, label='Cython', color='green', linestyle=':')
+    plt.plot(U, x, label='Reference', linestyle='-.', color='red')
+    plt.legend()
+    plt.savefig('quantile_plots/AAA.pdf')
+
+    print('Python: %.8e'%(py_time / num_trials))
+    print('Cython: %.8e'%(cy_time / num_trials))
+
+                
 
 
