@@ -108,7 +108,7 @@ def make_plots(
         cdfs,
         p_vals,
         quantiles,
-        scale='log',
+        scale=['linear', 'linear', 'log', 'log'],
         eta=0.0
 ):
     folder = 'quantile_plots'
@@ -136,6 +136,7 @@ def make_plots(
         )
     plt.title("CDF at different resolutions")
     plt.legend()
+    plt.scale(scale[0])
     plt.savefig('%s/cdf.pdf'%folder)
     plt.clf()
 
@@ -161,6 +162,7 @@ def make_plots(
         #     label='CDF'
         # )
         plt.legend()
+        plt.scale(scale[1])
         plt.savefig('%s/quantiles_%d.pdf'%(folder, N_vals[i]))
         plt.clf()
 
@@ -174,7 +176,7 @@ def make_plots(
         )
     plt.xlabel('Problem size')
     plt.ylabel('Time (s)')
-    plt.yscale(scale)
+    plt.yscale(scale[2])
     plt.legend()
     plt.title('Noise level: %.4e'%eta)
     plt.savefig('%s/runtimes.pdf'%folder)
@@ -191,7 +193,7 @@ def make_plots(
             )
         plt.xlabel('Problem size')
         plt.ylabel('Error')
-        plt.yscale(scale)
+        plt.yscale(scale[3])
         plt.legend()
         plt.title('Noise level: %.4e'%eta)
         plt.savefig('%s/err_%d.pdf'%(folder, j))
@@ -338,7 +340,7 @@ def go():
         p_vals.append(p)
         q_vals.append(copy.copy(res))
 
-    scale = 'linear'
+    scale = ['linear', 'linear', 'log', 'log']
     make_plots(
         N_vals, 
         eval_times, 
@@ -419,68 +421,232 @@ def smart_quantile2(x, pdf, cdf, p, tol=0.0):
             q[i] = x[i_x]
     return q
 
+def go2():
+    a = -5
+    b = 5
+    mu = 0.0
+    sig = 1.0
+    dist = norm(loc=mu, scale=sig)
+
+    N_base = int(1e3)
+    x_tmp = np.linspace(a,b,N_base)
+
+            
+    dummy = Dummy(
+        interp1d(x_tmp, dist.pdf(x_tmp), kind='cubic'),
+        interp1d(x_tmp, dist.cdf(x_tmp), kind='cubic'))
+    
+    t = time.time()
+    q, setup_time = \
+        tme(
+            NumericalInverseHermite, 
+            dummy, 
+            domain=(a,b), 
+            order=3, 
+            u_resolution=1e-5
+        )
+    setup_time = time.time() - t
+
+    N_vals = np.array([2**e for e in range(6,15)])
+    noise_level = 0.0
+    noise_level = 500.0
+    case_names = ['ScipyHermite', 'ScipyQuantile', 'CythonSmart', 'Cython']
+    non_np_modes = len(case_names)
+    np_modes = [
+        'inverted_cdf',
+        'averaged_inverted_cdf',
+        'closest_observation',
+        'interpolated_inverted_cdf',
+        'hazen',
+        'weibull',
+        'linear',
+        'median_unbiased',
+        'normal_unbiased'
+    ]
+    np_modes = []
+    [case_names.append(e) for e in np_modes]
+    error_names = [r'$\ell_2$', r'$\ell_{\infty}$']
+    num_cases = len(case_names)
+    eval_times = np.empty((num_cases,len(N_vals)))
+    errors = np.empty((num_cases, num_cases, len(N_vals)))
+    res = [[] for i in range(num_cases)]
+    cdfs = []
+    x_vals = []
+    p_vals = []
+    q_vals = []
+
+    eps = 1e-5
+    u = time.time()
+    for (i,N) in enumerate(N_vals):
+        elapsed = time.time() - u
+        computed = max(sum(N_vals[:i]),1)
+        remainder = sum(N_vals[i:])
+        avg = elapsed / computed
+        remaining = avg * remainder
+        print('Iteration %d of %d...elapsed=%f...etr: %.2f'%(
+            i+1,
+            len(N_vals),
+            time.time() - u,
+            remaining
+            )
+        )
+
+        x = np.linspace(a,b,N)
+        p = np.linspace(eps, 1-eps, N)
+        dx = x[1] - x[0]
+        if( noise_level == 0.0 ):
+            Y = dist.cdf(x)
+            ref = dist.ppf(p)
+        elif( 1 == 0 ):
+            the_pdf = noise_level * np.random.random(len(x))
+            the_pdf = np.abs(the_pdf - noise_level/2)
+            mid = len(the_pdf) // 2
+            delta = mid // 2 
+            the_pdf[(mid-delta):(mid+delta)] = 0.0
+            Y = cumulative_trapezoid(the_pdf, dx=dx, initial=0.0)
+            Y /= Y[-1]
+        else:
+            num_samples = min(3, len(x))
+            the_pdf = np.zeros(len(x))
+            idx = np.random.choice(len(x), num_samples, replace=False)
+            flat_no = 5
+            for i_idx in range(len(idx)):
+                val = np.random.random()
+                for i_flat in range(flat_no):
+                    curr = idx[i_idx] + i_flat
+                    if( curr < len(the_pdf) ):
+                        the_pdf[curr] = val
+            Y = cumulative_trapezoid(the_pdf, dx=dx, initial=0.0)
+            Y /= Y[-1]
+            the_pdf /= Y[-1]
+
+            dummy = Dummy(
+                interp1d(x, the_pdf, kind='cubic'),
+                interp1d(x, Y, kind='cubic'))
+
+            try:            
+                q = NumericalInverseHermite( 
+                    dummy, 
+                    domain=(a,b), 
+                    order=3, 
+                    u_resolution=1e-5
+                )
+            except:
+                q = dummy
+                q.ppf = lambda x : 0.0 * x
+
+
+        res[0], eval_times[0,i] = tme(q.ppf, p)
+        res[1], eval_times[1,i] = tme(mquantiles, Y, p)
+        res[2], eval_times[2,i] = tme(
+            smart_quantile,
+            x,
+            the_pdf,
+            Y,
+            p,
+            0.0
+        )
+        #res[3], eval_times[3,i] = tme(quantile_cython, Y, p, dx, a)
+        res[3], eval_times[3,i] = tme(quantile, Y, p, dx, a)
+        for (c,e) in enumerate(np_modes):
+            cc = c + non_np_modes
+            res[cc], eval_times[cc,i] = tme(
+                np.quantile,
+                Y,
+                p,
+                method=e
+            )
+        if( noise_level > 0 ):
+            ref_idx = 0
+            ref = res[ref_idx]
+
+        for j in range(num_cases):
+            diff = ref - res[j]
+            errors[j,0,i] = np.linalg.norm(diff) / N
+            errors[j,1,i] = np.max(diff)
+        x_vals.append(x)
+        cdfs.append(Y)
+        p_vals.append(p)
+        q_vals.append(copy.copy(res))
+
+    scale = 'linear'
+    make_plots(
+        N_vals, 
+        eval_times, 
+        errors, 
+        case_names, 
+        error_names,
+        x_vals,
+        cdfs,
+        p_vals,
+        q_vals, 
+        scale,
+        noise_level
+    )
+
 if( __name__ == "__main__" ):
-    N = 10
-    x = np.linspace(-5,5,N)
-    dx = x[1]-x[0]
+    go2()
+    # N = 10
+    # x = np.linspace(-5,5,N)
+    # dx = x[1]-x[0]
 
-    num_intervals = N // 10
-    fn = 3
-    idx = np.random.choice(N, num_intervals, replace=False)
-    u = np.zeros(N)
-    touched = []
-    for i in idx:
-        val = np.random.random()
-        for j in range(fn):
-            curr = i + j
-            if( curr not in touched and curr < N ):
-                u[curr] = val
-                touched.append(curr)
-    U = cumulative_trapezoid(u, dx=dx, initial=0.0)
-    U /= U[-1]
+    # num_intervals = N // 10
+    # fn = 3
+    # idx = np.random.choice(N, num_intervals, replace=False)
+    # u = np.zeros(N)
+    # touched = []
+    # for i in idx:
+    #     val = np.random.random()
+    #     for j in range(fn):
+    #         curr = i + j
+    #         if( curr not in touched and curr < N ):
+    #             u[curr] = val
+    #             touched.append(curr)
+    # U = cumulative_trapezoid(u, dx=dx, initial=0.0)
+    # U /= U[-1]
 
-    p = np.linspace(0,1,N+1)
-    tol = 0.0
+    # p = np.linspace(0,1,N+1)
+    # tol = 0.0
 
-    num_trials = 100
-    py_time = 0
-    cy_time = 0
-    for trial in range(num_trials):
-        # idx = np.random.choice(N, num_intervals, replace=False)
-        # u = np.zeros(N)
-        # touched = []
-        # for i in idx:
-        #     val = np.random.random()
-        #     for j in range(fn):
-        #         curr = i + j
-        #         if( curr not in touched and curr < N ):
-        #             u[curr] = val
-        #             touched.append(curr)
-        u = np.random.random(N)
-        U = cumulative_trapezoid(u, dx=dx, initial=0.0)
-        U /= U[-1]
-        t = time.time()
-        q_py = smart_quantile2(x, u, U, p, tol)
-        py_time += time.time() - t
-        t = time.time() 
-        q_cy = smart_quantile(x, u, U, p, tol)
-        cy_time += time.time() - t
+    # num_trials = 100
+    # py_time = 0
+    # cy_time = 0
+    # for trial in range(num_trials):
+    #     # idx = np.random.choice(N, num_intervals, replace=False)
+    #     # u = np.zeros(N)
+    #     # touched = []
+    #     # for i in idx:
+    #     #     val = np.random.random()
+    #     #     for j in range(fn):
+    #     #         curr = i + j
+    #     #         if( curr not in touched and curr < N ):
+    #     #             u[curr] = val
+    #     #             touched.append(curr)
+    #     u = np.random.random(N)
+    #     U = cumulative_trapezoid(u, dx=dx, initial=0.0)
+    #     U /= U[-1]
+    #     t = time.time()
+    #     q_py = smart_quantile2(x, u, U, p, tol)
+    #     py_time += time.time() - t
+    #     t = time.time() 
+    #     q_cy = smart_quantile(x, u, U, p, tol)
+    #     cy_time += time.time() - t
 
 
-    plt.subplot(2,1,1)
-    plt.plot(x, U, label='CDF')
-    plt.plot(x, u, label='PDF')
-    plt.legend()
+    # plt.subplot(2,1,1)
+    # plt.plot(x, U, label='CDF')
+    # plt.plot(x, u, label='PDF')
+    # plt.legend()
 
-    plt.subplot(2,1,2)
-    plt.plot(p, q_py, label='Python', color='blue')
-    plt.plot(p, q_cy, label='Cython', color='green', linestyle=':')
-    plt.plot(U, x, label='Reference', linestyle='-.', color='red')
-    plt.legend()
-    plt.savefig('quantile_plots/AAA.pdf')
+    # plt.subplot(2,1,2)
+    # plt.plot(p, q_py, label='Python', color='blue')
+    # plt.plot(p, q_cy, label='Cython', color='green', linestyle=':')
+    # plt.plot(U, x, label='Reference', linestyle='-.', color='red')
+    # plt.legend()
+    # plt.savefig('quantile_plots/AAA.pdf')
 
-    print('Python: %.8e'%(py_time / num_trials))
-    print('Cython: %.8e'%(cy_time / num_trials))
+    # print('Python: %.8e'%(py_time / num_trials))
+    # print('Cython: %.8e'%(cy_time / num_trials))
 
                 
 
