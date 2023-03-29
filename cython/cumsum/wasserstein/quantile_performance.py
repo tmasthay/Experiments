@@ -136,7 +136,7 @@ def make_plots(
         )
     plt.title("CDF at different resolutions")
     plt.legend()
-    plt.scale(scale[0])
+    plt.yscale(scale[0])
     plt.savefig('%s/cdf.pdf'%folder)
     plt.clf()
 
@@ -162,7 +162,7 @@ def make_plots(
         #     label='CDF'
         # )
         plt.legend()
-        plt.scale(scale[1])
+        plt.yscale(scale[1])
         plt.savefig('%s/quantiles_%d.pdf'%(folder, N_vals[i]))
         plt.clf()
 
@@ -227,7 +227,7 @@ def go():
 
     N_vals = np.array([2**e for e in range(6,15)])
     noise_level = 0.0
-    noise_level = 500.0
+    # noise_level = 500.0
     case_names = ['ScipyHermite', 'ScipyQuantile', 'PurePython', 'Cython']
     non_np_modes = len(case_names)
     np_modes = [
@@ -273,6 +273,7 @@ def go():
         p = np.linspace(eps, 1-eps, N)
         dx = x[1] - x[0]
         if( noise_level == 0.0 ):
+            the_pdf = dist.pdf(x)
             Y = dist.cdf(x)
             ref = dist.ppf(p)
         elif( 1 == 0 ):
@@ -447,9 +448,9 @@ def go2():
         )
     setup_time = time.time() - t
 
-    N_vals = np.array([2**e for e in range(6,15)])
+    N_vals = np.array([2**e for e in range(6,24)])
     noise_level = 0.0
-    noise_level = 500.0
+    # noise_level = 500.0
     case_names = ['ScipyHermite', 'ScipyQuantile', 'CythonSmart', 'Cython']
     non_np_modes = len(case_names)
     np_modes = [
@@ -495,6 +496,7 @@ def go2():
         p = np.linspace(eps, 1-eps, N)
         dx = x[1] - x[0]
         if( noise_level == 0.0 ):
+            the_pdf = dist.pdf(x)
             Y = dist.cdf(x)
             ref = dist.ppf(p)
         elif( 1 == 0 ):
@@ -569,7 +571,7 @@ def go2():
         p_vals.append(p)
         q_vals.append(copy.copy(res))
 
-    scale = 'linear'
+    scale = ['linear', 'linear', 'log', 'log']
     make_plots(
         N_vals, 
         eval_times, 
