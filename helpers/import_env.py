@@ -45,7 +45,11 @@ def get_local_modules(path, **kw):
     return res
 
 def init_modules(path, **kw):
-    local_modules = get_local_modules(path, **kw)
+    root = kw.get('root', False)
+    if( root ):
+        local_modules = []
+    else:
+        local_modules = get_local_modules(path, **kw)
     subfolders = get_subfolders(path, **kw)
     [local_modules.append(e) for e in subfolders]
     s = '__all__ = [\n'
@@ -59,6 +63,7 @@ def init_modules(path, **kw):
         f.write(s)
 
     global_subfolders = ['%s/%s'%(path,e) for e in subfolders]
+    kw['root'] = False
     for e in global_subfolders:
         init_modules(e, **kw)
 
