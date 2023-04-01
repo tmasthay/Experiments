@@ -34,20 +34,6 @@ def get_subfolders(path, **kw):
         u = [get_local_name(e, ext) for e in omissions]
     return u
 
-def superpkgs(path):
-    superpackages = []
-    curr = path.split('/')[:-1]
-    found = True
-    while( len(curr) > 1 ):
-        cmd = 'find %s -name __init__.py -depth 1'%('/'.join(curr))
-        found = len(sco(cmd)) > 0
-        if( found ):
-            superpackages.insert(0,curr[-1])
-            curr = curr[:-1]
-        else:
-            break
-    return superpackages
-
 def get_local_modules(path, local=True, ext='.py'):
     res = sco(
         r'find %s -type f -name "*.py" -depth 1 | grep -v "\/[_.]"'%(path)
@@ -56,35 +42,16 @@ def get_local_modules(path, local=True, ext='.py'):
         res = [get_local_name(e).replace(ext,'') for e in res]
     return res
 
-def import_local_modules(path, local=True, ext='.py', super_module=True):
-    input(path)
+def import_local_modules(path, **kw):
+    local = kw.get('local', True)
+    ext = kw.get('ext', '.py')
+    verbose = kw.get('verbose', False)
     local_modules = get_local_modules(path, local=local, ext=ext)
-    module_name = get_local_name(path)
-    input(module_name)
-    input(local_modules)
-    for e in local_modules:
-        # importlib.import_module(e)
-        exec('from .%s import *'%e)
-    return local_modules
-
-def import_submodules(path, **kw):
-    subfolders = get_subfolders(path, **kw)
-    if( len(subfolders) == 0 ):
-        return None
-    else:
-        for folder in subfolders:
-            # importlib.module(folder)
-            exec('import %s'%folder)
-        return subfolders
-    
-def import_dependencies(path, **kw):
-    filename = kw.get('filename', True)
-    if( filename ):
-        path = get_global_folder(path)
-    all_dummy = import_local_modules(path)
-    submodules = import_submodules(path, **kw)
-    [all_dummy.append(e) for e in submodules if e != None]
-    return all_dummy
-
-
+    local_modules = ["'%s'"%e for e in local_modules]
+    s = '__all__ = [\n    '
+    s += ',\n    '.join(local_modules) + '\n]'
+    f = open(path + '/__unit__.py', 'w')
+    f.write(s)
+    f.close()
+    return 0
 
