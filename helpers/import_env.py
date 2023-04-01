@@ -12,9 +12,6 @@ def sco(s,split=True):
     else:
         return res
     
-def get_global_folder(fname):
-    return fname if '/' not in fname else '/'.join(fname.split('/')[:-1])
-    
 def get_local_name(s,ext='.py'):
     return s if '/' not in s else s.split('/')[-1].replace(ext, '')
     
@@ -48,22 +45,6 @@ def get_local_modules(path, **kw):
     if( local ):
         res = [get_local_name(e).replace(ext,'') for e in res]
     return res
-
-def import_local_modules(path, **kw):
-    local = kw.get('local', True)
-    ext = kw.get('ext', '.py')
-    verbose = kw.get('verbose', False)
-    local_modules = get_local_modules(path, local=local, ext=ext)
-    local_modules = ["'%s'"%e for e in local_modules]
-    s = '__all__ = [\n    '
-    s += ',\n    '.join(local_modules) + '\n]\n'
-    for e in local_modules:
-        v = e.replace("'",'')
-        s += 'from .%s import *\n'%v
-    f = open(path + '/__init__.py', 'w')
-    f.write(s)
-    f.close()
-    return 0
 
 def init_modules(path, **kw):
     local_modules = get_local_modules(path, **kw)
