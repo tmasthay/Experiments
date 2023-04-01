@@ -1,6 +1,4 @@
 from subprocess import check_output as co
-import importlib
-import os
 
 def sco(s,split=True):
     try:
