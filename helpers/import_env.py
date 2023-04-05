@@ -1,4 +1,5 @@
 from subprocess import check_output as co
+import os
 
 def sco(s,split=True):
     try:
@@ -67,4 +68,10 @@ def init_modules(path, **kw):
     kw['root'] = False
     for e in global_subfolders:
         init_modules(e, **kw)
+
+def run_make_files():
+    ref_path = os.getcwd()
+    make_files = ht.sco('find %s -name "Makefile"'%ref_path, True)
+    make_dir = [e.replace('/Makefile','') for e in make_files]
+    print(make_dir)
 
