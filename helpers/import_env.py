@@ -39,8 +39,9 @@ def get_local_modules(path, **kw):
     local = kw.get('local', True)
     ext = kw.get('ext', '.py')
     res = sco(
-        r'find %s -type f -name "*.py" -depth 1 | grep -v "\/[_.]"'%(path)
+        r'find %s -type f -name "*.py" -depth 1'%(path)
     )
+    res = [e for e in res if not (e.startswith('.') or e.startswith('_'))]
     if( local ):
         res = [get_local_name(e).replace(ext,'') for e in res]
     return res
