@@ -58,9 +58,10 @@ def init_modules(path, **kw):
     s = s[:-2]
     s += '\n]\n'
     s += 'from . import *'
-    filename = path + '/__init__.py'
-    with open(filename, 'w') as f: 
-        f.write(s)
+    if( not root ):
+        filename = path + '/__init__.py'
+        with open(filename, 'w') as f: 
+            f.write(s)
 
     global_subfolders = ['%s/%s'%(path,e) for e in subfolders]
     kw['root'] = False
