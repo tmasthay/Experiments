@@ -83,5 +83,8 @@ def run_make_files(omissions=[]):
     make_dir = np.array([e.replace('/Makefile','') for e in make_files])
     omit = [np.any([ee in e for ee in omissions]) for e in make_dir]
     make_dir = [e for (i,e) in enumerate(make_dir) if not omit[i]]
-    print(make_dir)
+    for d in make_dir:
+        os.chdir(d)
+        os.system('make')
+    os.chdir(ref_path)    
 
