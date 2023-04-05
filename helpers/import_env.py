@@ -1,6 +1,6 @@
 from subprocess import check_output as co
 import os
-import np
+import numpy as np
 
 def sco(s,split=True):
     try:
