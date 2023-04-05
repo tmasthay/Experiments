@@ -70,9 +70,16 @@ def init_modules(path, **kw):
     for e in global_subfolders:
         init_modules(e, **kw)
 
-def run_make_files():
+def run_make_files(omissions):
     ref_path = os.getcwd()
+    omissions = [ \
+        e \
+        if e.startswith('/') \
+        else '%s/%s'%(ref_path, e) \
+        for e in omissions \
+    ]
     make_files = sco('find %s -name "Makefile"'%ref_path, True)
     make_dir = [e.replace('/Makefile','') for e in make_files]
+    make_dir = [e for e in make_dir if e in omissions]
     print(make_dir)
 
