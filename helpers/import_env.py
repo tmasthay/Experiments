@@ -70,7 +70,7 @@ def init_modules(path, **kw):
     for e in global_subfolders:
         init_modules(e, **kw)
 
-def run_make_files(omissions):
+def run_make_files(omissions=[]):
     ref_path = os.getcwd()
     omissions = [ \
         e \
