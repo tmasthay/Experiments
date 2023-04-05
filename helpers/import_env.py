@@ -80,6 +80,6 @@ def run_make_files(omissions=[]):
     ]
     make_files = sco('find %s -name "Makefile"'%ref_path, True)
     make_dir = [e.replace('/Makefile','') for e in make_files]
-    make_dir = [e for e in make_dir if e in omissions]
+    make_dir = [e for e in make_dir if not e in omissions]
     print(make_dir)
 
