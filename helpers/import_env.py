@@ -71,7 +71,7 @@ def init_modules(path, **kw):
 
 def run_make_files():
     ref_path = os.getcwd()
-    make_files = ht.sco('find %s -name "Makefile"'%ref_path, True)
+    make_files = sco('find %s -name "Makefile"'%ref_path, True)
     make_dir = [e.replace('/Makefile','') for e in make_files]
     print(make_dir)
 
