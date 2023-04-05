@@ -1,5 +1,6 @@
 from subprocess import check_output as co
 import os
+import np
 
 def sco(s,split=True):
     try:
@@ -79,7 +80,8 @@ def run_make_files(omissions=[]):
         for e in omissions \
     ]
     make_files = sco('find %s -name "Makefile"'%ref_path, True)
-    make_dir = [e.replace('/Makefile','') for e in make_files]
-    make_dir = [e for e in make_dir if not e in omissions]
+    make_dir = np.array([e.replace('/Makefile','') for e in make_files])
+    omit = [np.any([ee in e for ee in omissions]) for e in make_dir]
+    make_dir = [e for (i,e) in enumerate(make_dir) if not omit[i]]
     print(make_dir)
 
