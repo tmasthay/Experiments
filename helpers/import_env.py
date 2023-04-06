@@ -48,7 +48,9 @@ def get_local_modules(path, **kw):
         r'find %s -type f -name "*%sx" -depth 1'%(path, ext)
     )
     [res.append(e) for e in res2]
+    input(res)
     res = [e for e in res if not (e.startswith('.') or e.startswith('_'))]
+    input(res)
     if( local ):
         res = [get_local_name(e).replace(ext + 'x','') for e in res]
         res = [get_local_name(e).replace(ext,'') for e in res]
