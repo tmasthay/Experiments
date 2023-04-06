@@ -59,6 +59,8 @@ def get_local_modules(path, **kw):
     input(res)
     if( local ):
         print('\n\ncritical: %s'%(ext + 'x'))
+        res = [get_local_name(e) for e in res]
+        input(res)
         res = [get_local_name(e).replace(ext + 'x','') for e in res]
         input(res)
         res = [get_local_name(e).replace(ext,'') for e in res]
