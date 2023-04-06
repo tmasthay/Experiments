@@ -24,10 +24,12 @@ def get_subfolders(path, **kw):
     try:
         cmd = r'find %s -type d -depth %d'%(path, depth)
         u = sco(cmd)
+        input(u)
         u = [e for e in u \
             if not e.startswith('__') \
                 and not e.startswith('.')
         ]
+        input(u)
     except:
         u = []
     if( len(omissions) > 0 ):
