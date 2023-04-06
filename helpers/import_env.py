@@ -13,7 +13,9 @@ def sco(s,split=True):
         return res
     
 def get_local_name(s,ext='.py'):
-    return s if '/' not in s else s.split('/')[-1].replace(ext, '')
+    u = s if '/' not in s else s.split('/')[-1]
+    u = u.replace(ext + 'x', '')
+    return u.replace(ext, '')
     
 def get_subfolders(path, **kw):
     omissions = kw.get('omissions', [])
@@ -24,19 +26,16 @@ def get_subfolders(path, **kw):
     try:
         cmd = r'find %s -type d -depth %d'%(path, depth)
         u = sco(cmd)
-        input(u)
         u = [e for e in u \
             if not e.split('/')[-1].startswith('__') \
                 and not e.split('/')[-1].startswith('.')
         ]
-        input(u)
     except:
         u = []
     if( len(omissions) > 0 ):
         u = [e for e in u if e not in omissions]
     if( local ):
         u = [get_local_name(e, ext) for e in u]
-    input(u)
     return u
 
 def get_local_modules(path, **kw):
@@ -49,23 +48,14 @@ def get_local_modules(path, **kw):
         r'find %s -type f -name "*%sx" -depth 1'%(path, ext)
     )
     [res.append(e) for e in res2]
-    input(res)
     res = [e for e in res if \
         not(
                 e.split('/')[-1].startswith('.') \
                 or e.split('/')[-1].startswith('_')
         )
     ]
-    input(res)
     if( local ):
-        print('\n\ncritical: %s'%(ext + 'x'))
         res = [get_local_name(e) for e in res]
-        input(res)
-        res = [get_local_name(e).replace(ext + 'x','') for e in res]
-        input(res)
-        res = [get_local_name(e).replace(ext,'') for e in res]
-        input(res)
-    input(res)
     return res
 
 def init_modules(path, **kw):
