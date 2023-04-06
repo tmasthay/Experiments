@@ -96,6 +96,8 @@ def run_make_files(omissions=[]):
     make_dir = [e for (i,e) in enumerate(make_dir) if not omit[i]]
     for d in make_dir:
         os.chdir(d)
+        os.system('rm __init__.py')
+        os.system('make clean')
         os.system('make')
     os.chdir(ref_path)    
 
