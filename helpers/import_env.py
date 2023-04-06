@@ -36,6 +36,7 @@ def get_subfolders(path, **kw):
         u = [e for e in u if e not in omissions]
     if( local ):
         u = [get_local_name(e, ext) for e in u]
+    input(u)
     return u
 
 def get_local_modules(path, **kw):
@@ -59,6 +60,7 @@ def get_local_modules(path, **kw):
     if( local ):
         res = [get_local_name(e).replace(ext + 'x','') for e in res]
         res = [get_local_name(e).replace(ext,'') for e in res]
+    input(res)
     return res
 
 def init_modules(path, **kw):
