@@ -26,8 +26,8 @@ def get_subfolders(path, **kw):
         u = sco(cmd)
         input(u)
         u = [e for e in u \
-            if not e.startswith('__') \
-                and not e.startswith('.')
+            if not e.split('/')[-1].startswith('__') \
+                and not e.split('/')[-1].startswith('.')
         ]
         input(u)
     except:
@@ -49,7 +49,12 @@ def get_local_modules(path, **kw):
     )
     [res.append(e) for e in res2]
     input(res)
-    res = [e for e in res if not (e.startswith('.') or e.startswith('_'))]
+    res = [e for e in res if \
+        not(
+                e.split('/')[-1].startswith('.') \
+                or e.split('/')[-1].startswith('_')
+        )
+    ]
     input(res)
     if( local ):
         res = [get_local_name(e).replace(ext + 'x','') for e in res]
