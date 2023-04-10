@@ -14,7 +14,7 @@ def setup_gg_plot(fig_color, face_color):
     plt.rcParams['figure.facecolor'] = face_color
     plt.rcParams['text.usetex'] = True 
 
-def set_black_plot(**kw):
+def set_color_plot(**kw):
     axis_color = kw.get('axis_color', 'white')
     leg_edge_color = kw.get('leg_edge_color', 'white')
     leg_label_color = kw.get('leg_label_color', 'white')
