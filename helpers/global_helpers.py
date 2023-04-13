@@ -11,7 +11,7 @@ class ght:
 
     def conda_include_everything():
         inc_paths = ':'.join(ght.sco('find $CONDA_PREFIX/include -type d'))
-        c_path = os.environ("C_INCLUDE_PATH")
+        c_path = os.environ.get("C_INCLUDE_PATH")
         cmd = "echo 'export C_INCLUDE_PATH=%s:%s'"%(c_path, inc_paths)
         cmd += ' | pbcopy'
         os.system(cmd) 

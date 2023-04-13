@@ -60,6 +60,7 @@ def get_local_modules(path, **kw):
 
 def init_modules(path, **kw):
     root = kw.get('root', False)
+    unload = kw.get('unload', False)
     if( root ):
         local_modules = []
     else:
@@ -71,7 +72,8 @@ def init_modules(path, **kw):
         s += '    "%s",\n'%e
     s = s[:-2]
     s += '\n]\n'
-    s += 'from . import *'
+    if( unload ):
+        s += 'from . import *'
     if( not root ):
         filename = path + '/__init__.py'
         with open(filename, 'w') as f: 
