@@ -33,3 +33,8 @@ def set_color_plot(**kw):
             labelcolor=leg_label_color
         )
     plt.grid(use_grid)
+
+def set_color_plot_global(**kw):
+    def helper():
+        set_color_plot(**kw)
+    return helper
