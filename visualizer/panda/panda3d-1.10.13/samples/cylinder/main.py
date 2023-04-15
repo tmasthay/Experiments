@@ -7,6 +7,14 @@ import numpy as np
 from direct.gui.OnscreenText import OnscreenText
 from panda3d.core import TextNode, GeomTristrips, PointLight
 
+from panda3d.bullet import BulletWorld, BulletRigidBodyNode, BulletBoxShape, BulletCylinderShape
+from panda3d.bullet import BulletDebugNode, BulletSphereShape, BulletConvexHullShape
+from panda3d.bullet import BulletCharacterControllerNode
+from panda3d.bullet import BulletTriangleMesh, BulletTriangleMeshShape
+from panda3d.bullet import BulletGhostNode, BulletBoxShape
+
+
+
 
 
 class MyApp(ShowBase):
@@ -109,6 +117,30 @@ class MyApp(ShowBase):
             # self.cam.lookAt(self.cylinder_node)
             # alpha = 3 * t * 360
             # self.cylinder_node.setHpr(alpha, alpha, alpha)
+
+        world = BulletWorld()
+
+        #create mesh copy of the cylinder to create bullet mesh
+        cylinder_mesh = BulletTriangleMesh()
+        cylinder_mesh.addGeom(self.cylinder_node.node().getGeom(0))
+        cylinder_shape = BulletTriangleMeshShape(cylinder_mesh, dynamic=True)
+
+        #bind the mesh to a bullet handler and then bind to cylinder_node
+        cylinder_bullet_node = BulletRigidBodyNode('cylinder')
+        cylinder_bullet_node.setMass(1.0)
+        cylinder_bullet_node.addShape(cylinder_shape)
+        self.cylinder_node.attachNewNode(cylinder_bullet_node)
+
+        #create mesh copy of the cylinder to create bullet mesh
+        cube_bullet_mesh = BulletTriangleMesh()
+        cube_bullet_mesh.addGeom(self.cube.node().getGeom(0))
+        cube_bullet_shape = BulletTriangleMeshShape(cube_bullet_mesh, dynamic=True)
+
+        #bind the mesh to a bullet handler and then bind to self.cube
+        cube_bullet_node = BulletRigidBodyNode('cube')
+        cube_bullet_node.setMass(1.0)
+        cube_bullet_node.addShape(cube_bullet_shape)
+        self.cube.attachNewNode(cylinder_bullet_node)
 
         self.cylinder_move_interval = LerpFunc(
             update_cylinder_position,
