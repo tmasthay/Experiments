@@ -8,9 +8,8 @@ cimport cython
 @cython.initializedcheck(False)
 @cython.nonecheck(False)
 
-class gth_cython:
-    def float_range(double start, double stop, int num_points):
-        cdef int i
-        cdef step_size = (stop - start) / (num_points - 1)
-        for i in range(num_points):
-            yield start + i * step_size
+def float_range(double start, double stop, int num_points):
+    cdef int i
+    cdef step_size = (stop - start) / (num_points - 1)
+    for i in range(num_points):
+        yield start + i * step_size
