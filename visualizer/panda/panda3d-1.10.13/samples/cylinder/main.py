@@ -140,7 +140,10 @@ class MyApp(ShowBase):
         cube_bullet_node = BulletRigidBodyNode('cube')
         cube_bullet_node.setMass(1.0)
         cube_bullet_node.addShape(cube_bullet_shape)
-        self.cube.attachNewNode(cylinder_bullet_node)
+        self.cube.attachNewNode(cube_bullet_node)
+
+        world.attachRigidBody(cylinder_bullet_node)
+        world.attachRigidBody(cube_bullet_node)
 
         self.cylinder_move_interval = LerpFunc(
             update_cylinder_position,
