@@ -5,7 +5,7 @@ from direct.interval.IntervalGlobal import LerpFunc
 from panda3d.core import GeomVertexWriter
 import numpy as np
 from direct.gui.OnscreenText import OnscreenText
-from panda3d.core import TextNode, GeomTristrips
+from panda3d.core import TextNode, GeomTristrips, PointLight
 
 
 
@@ -15,30 +15,42 @@ class MyApp(ShowBase):
 
         self.setBackgroundColor(0, 0, 0)
 
+        # Define materials for the cube
+        mat_cube = Material()
+        mat_cube.setAmbient((1, 1, 1, 1))
+        mat_cube.setSpecular((0.2, 0.2, 0.2, 1))
+
+        # Create the cube and add the material to it
+        self.cube = self.create_cube(1)
+        self.cube.set_pos(0, 0, 0)
+        self.cube.set_hpr(0, 0, 0)
+        self.cube.setTwoSided(True)
+        self.cube.reparent_to(self.render)
+
         radius = 0.1
-        height = 100
+        height = 10
         shape1 = BulletCylinderShape(radius, height, 2)
         shape2 = BulletCylinderShape(Vec3(radius, 0, 0.5 * height), 2)
 
         # Create a cylinder
-        cylinder_node = self.create_cylinder(radius, height, 16)
-        # cylinder_node = shape1
-        cylinder_node.reparentTo(self.render)
-        cylinder_node.setTwoSided(True)
+        self.cylinder_node = self.create_cylinder(radius, height, 16)
+        # self.cylinder_node = shape1
+        self.cylinder_node.reparentTo(self.render)
+        self.cylinder_node.setTwoSided(True)
 
         texture = self.loader.loadTexture('laser_texture_red.png')
-        cylinder_node.setTexture(texture)
+        self.cylinder_node.setTexture(texture)
 
         # Set the material properties
         mat = Material()
         mat.setSpecular((1, 1, 1, 1))
         mat.setAmbient((1,0,0,1))
         mat.setShininess(200)
-        cylinder_node.setMaterial(mat)
+        self.cylinder_node.setMaterial(mat)
 
         # Create a directional light pointing in the negative Z direction
         self.cam.setPos(0, -20, -10)
-        self.cam.lookAt(cylinder_node)
+        self.cam.lookAt(self.cylinder_node)
         base.camLens.setNearFar(0.1, 10000)
 
         # Set up the key bindings
@@ -72,15 +84,31 @@ class MyApp(ShowBase):
         directional_light.setDirection(LVector3(0, 0, -1))
         directional_light.setColor((0.9, 0.8, 0.9, 1))
 
+
+        self.lights = []
+        num_lights = 10
+        for i in range(num_lights):
+            light_node = PointLight("point_light_" + str(i))
+            light_node.setColor((1, 1, 1, 1))
+            light_position = Vec3(0, 0, i / (num_lights - 1) * height)
+            attenuation = LVector3(0.1, 0.05, 0.02)
+            light_node.setAttenuation(attenuation)
+            light_node_path = self.cylinder_node.attachNewNode(light_node)
+            light_node_path.setPos(light_position)
+            self.render.setLight(light_node_path)
+            self.lights.append(light_node_path)
+
         render.setLight(render.attachNewNode(ambient_light))
         render.setLight(render.attachNewNode(directional_light))
 
         # Animate the cylinder moving along the Y-axis
         def update_cylinder_position(t):
-            cylinder_node.setPos(0, t * 100, height / 2)
-            self.cam.lookAt(cylinder_node)
-            alpha = 3 * t * 360
-            cylinder_node.setHpr(alpha, alpha, alpha)
+            self.cam.lookAt(self.cube)
+            pass
+            # self.cylinder_node.setPos(0, t * 100, height / 2)
+            # self.cam.lookAt(self.cylinder_node)
+            # alpha = 3 * t * 360
+            # self.cylinder_node.setHpr(alpha, alpha, alpha)
 
         self.cylinder_move_interval = LerpFunc(
             update_cylinder_position,
@@ -91,6 +119,7 @@ class MyApp(ShowBase):
             extraArgs=[],
             name=None
         )
+        self.taskMgr.doMethodLater(0.5, self.strobe_effect, "StrobeEffectTask")
         self.cylinder_move_interval.loop()
 
     # def create_cylinder(self, radius, height, num_segments=16):
@@ -205,6 +234,79 @@ class MyApp(ShowBase):
             f'Camera direction: h={hpr[0]:.2f}, p={hpr[1]:.2f}, r={hpr[2]:.2f}'
         )
         return task.cont
+    
+    def strobe_effect(self, task):
+        hidden = self.cylinder_node.is_hidden()
+        if( hidden ):
+            self.cylinder_node.show()
+        else:
+            self.cylinder_node.hide()
+        return task.again
+    
+    def create_cube(self, size=1):
+        format = GeomVertexFormat.getV3n3()
+        vdata = GeomVertexData('cube', format, Geom.UHDynamic)
+
+        vertex = GeomVertexWriter(vdata, 'vertex')
+        normal = GeomVertexWriter(vdata, 'normal')
+
+        # Define the vertices and normals for each face
+        vertices = [
+            # Front face
+            (-size, -size,  size), ( size, -size,  size),
+            ( size,  size,  size), (-size,  size,  size),
+
+            # Back face
+            ( size, -size, -size), (-size, -size, -size),
+            (-size,  size, -size), ( size,  size, -size),
+
+            # Right face
+            ( size, -size,  size), ( size, -size, -size),
+            ( size,  size, -size), ( size,  size,  size),
+
+            # Left face
+            (-size, -size, -size), (-size, -size,  size),
+            (-size,  size,  size), (-size,  size, -size),
+
+            # Top face
+            (-size,  size,  size), ( size,  size,  size),
+            ( size,  size, -size), (-size,  size, -size),
+
+            # Bottom face
+            (-size, -size, -size), ( size, -size, -size),
+            ( size, -size,  size), (-size, -size,  size),
+        ]
+
+        normals = [
+            ( 0,  0,  1),  # Front face
+            ( 0,  0, -1),  # Back face
+            ( 1,  0,  0),  # Right face
+            (-1,  0,  0),  # Left face
+            ( 0,  1,  0),  # Top face
+            ( 0, -1,  0),  # Bottom face
+        ]
+
+        # Add the vertices and normals to the vertex buffer
+        for i in range(6):
+            for j in range(4):
+                vertex.addData3f(*vertices[i*4 + j])
+                normal.addData3f(*normals[i])
+
+        # Define the triangles for each face
+        geom = Geom(vdata)
+        tris = GeomTriangles(Geom.UHDynamic)
+
+        for i in range(6):
+            tris.addVertices(i*4, i*4 + 1, i*4 + 2)
+            tris.addVertices(i*4, i*4 + 2, i*4 + 3)
+
+        geom.addPrimitive(tris)
+        node = GeomNode('cube')
+        node.addGeom(geom)
+
+        return NodePath(node)
+
+
 
 
 app = MyApp()
