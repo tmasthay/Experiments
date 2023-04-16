@@ -12,8 +12,7 @@ from panda3d.bullet import BulletDebugNode, BulletSphereShape, BulletConvexHullS
 from panda3d.bullet import BulletCharacterControllerNode
 from panda3d.bullet import BulletTriangleMesh, BulletTriangleMeshShape
 from panda3d.bullet import BulletGhostNode, BulletBoxShape
-
-
+from panda3d.core import CollisionTraverser, CollisionHandlerEvent, CollisionNode, CollisionSphere, CollisionBox, LPoint3f, WindowProperties
 
 
 
@@ -30,7 +29,7 @@ class MyApp(ShowBase):
 
         # Create the cube and add the material to it
         self.cube = self.create_cube(1)
-        self.cube.set_pos(0, 0, 0)
+        self.cube.set_pos(1, 0, 0)
         self.cube.set_hpr(0, 0, 0)
         self.cube.setTwoSided(True)
         self.cube.reparent_to(self.render)
@@ -57,15 +56,29 @@ class MyApp(ShowBase):
         self.cylinder_node.setMaterial(mat)
 
         # Create a directional light pointing in the negative Z direction
-        self.cam.setPos(0, -20, -10)
+        # self.cam.setPos(0, -20, -10)
+        self.cam.setPos(0,-20,10)
         self.cam.lookAt(self.cylinder_node)
         base.camLens.setNearFar(0.1, 10000)
 
         # Set up the key bindings
-        self.accept('arrow_up', self.move_camera, [0, 1])
-        self.accept('arrow_down', self.move_camera, [0, -1])
-        self.accept('arrow_left', self.move_camera, [-1, 0])
-        self.accept('arrow_right', self.move_camera, [1, 0])
+        self.delta = 0.1
+        self.accept('arrow_up', self.move_camera_forward)
+        self.accept('arrow_down', self.move_camera_backward)
+
+
+        self.dragging = False
+        self.last_mouse_pos = None
+
+        props = WindowProperties()
+        props.set_cursor_hidden(False)
+        self.win.request_properties(props)
+
+        # self.accept("mouse1", self.start_dragging)
+        # self.accept("mouse1-up", self.stop_dragging)
+        # self.accept("aspectRatioChanged", self.adjust_aspect_ratio)
+        # self.task_mgr.add(self.drag_camera_task, "drag_camera_task")
+
 
         self.position_text = OnscreenText(
             text='', 
@@ -111,39 +124,10 @@ class MyApp(ShowBase):
 
         # Animate the cylinder moving along the Y-axis
         def update_cylinder_position(t):
-            self.cam.lookAt(self.cube)
-            pass
-            # self.cylinder_node.setPos(0, t * 100, height / 2)
+            self.cylinder_node.setPos(0.5, 0.5, 10 - t * 100)
             # self.cam.lookAt(self.cylinder_node)
             # alpha = 3 * t * 360
             # self.cylinder_node.setHpr(alpha, alpha, alpha)
-
-        world = BulletWorld()
-
-        #create mesh copy of the cylinder to create bullet mesh
-        cylinder_mesh = BulletTriangleMesh()
-        cylinder_mesh.addGeom(self.cylinder_node.node().getGeom(0))
-        cylinder_shape = BulletTriangleMeshShape(cylinder_mesh, dynamic=True)
-
-        #bind the mesh to a bullet handler and then bind to cylinder_node
-        cylinder_bullet_node = BulletRigidBodyNode('cylinder')
-        cylinder_bullet_node.setMass(1.0)
-        cylinder_bullet_node.addShape(cylinder_shape)
-        self.cylinder_node.attachNewNode(cylinder_bullet_node)
-
-        #create mesh copy of the cylinder to create bullet mesh
-        cube_bullet_mesh = BulletTriangleMesh()
-        cube_bullet_mesh.addGeom(self.cube.node().getGeom(0))
-        cube_bullet_shape = BulletTriangleMeshShape(cube_bullet_mesh, dynamic=True)
-
-        #bind the mesh to a bullet handler and then bind to self.cube
-        cube_bullet_node = BulletRigidBodyNode('cube')
-        cube_bullet_node.setMass(1.0)
-        cube_bullet_node.addShape(cube_bullet_shape)
-        self.cube.attachNewNode(cube_bullet_node)
-
-        world.attachRigidBody(cylinder_bullet_node)
-        world.attachRigidBody(cube_bullet_node)
 
         self.cylinder_move_interval = LerpFunc(
             update_cylinder_position,
@@ -154,6 +138,19 @@ class MyApp(ShowBase):
             extraArgs=[],
             name=None
         )
+
+        self.theta = 0.0
+        self.phi = 0.0
+        self.drag_start = False
+        self.cube_collision = self.create_cube_collision(1)
+        self.cylinder_collision = self.create_cylinder_collision(radius, height)
+        self.collision_traverser = CollisionTraverser()
+        self.collision_handler = CollisionHandlerEvent()
+        self.collision_handler.addInPattern('into-%in')
+        self.collision_traverser.add_collider(self.cube_collision, self.collision_handler)
+        self.accept('into-cube_collision', self.handle_intersection)
+        self.taskMgr.add(self.check_for_intersection, "CheckForIntersectionTask")
+
         self.taskMgr.doMethodLater(0.5, self.strobe_effect, "StrobeEffectTask")
         self.cylinder_move_interval.loop()
 
@@ -221,6 +218,8 @@ class MyApp(ShowBase):
                 normal.addData3(x, y, 0)
                 texcoord.addData2(u, v)
 
+                print('(%f,%f,%f)'%(x,y,z))
+
                 if z == 0:
                     bottom_vertex.append(vdata.get_num_rows() - 1)
                 else:
@@ -272,10 +271,10 @@ class MyApp(ShowBase):
     
     def strobe_effect(self, task):
         hidden = self.cylinder_node.is_hidden()
-        if( hidden ):
-            self.cylinder_node.show()
-        else:
-            self.cylinder_node.hide()
+        # if( hidden ):
+        #     self.cylinder_node.show()
+        # else:
+        #     self.cylinder_node.show()
         return task.again
     
     def create_cube(self, size=1):
@@ -340,8 +339,85 @@ class MyApp(ShowBase):
         node.addGeom(geom)
 
         return NodePath(node)
+    
+    def create_cube_collision(self, size=1):
+        cube_collision = CollisionBox((0, 0, 0), size)
+        collision_node = CollisionNode('cube_collision')
+        collision_node.addSolid(cube_collision)
+        collision_node.setIntoCollideMask(0)
+        collision_node_path = self.cube.attachNewNode(collision_node)
+        return collision_node_path
+    
+    def create_cylinder_collision(self, radius, height):
+        cylinder_collision = CollisionSphere((0, 0, height / 2), radius)
+        collision_node = CollisionNode('cylinder_collision')
+        collision_node.addSolid(cylinder_collision)
+        collision_node.setIntoCollideMask(0)
+        collision_node_path = self.cylinder_node.attachNewNode(collision_node)
+        return collision_node_path
+    
+    def handle_intersection(self, entry):
+        mat = Material()
+        mat.setAmbient((1, 1, 0, 1))
+        mat.setDiffuse((1, 1, 0, 1))
+        mat.setSpecular((0.2, 0.2, 0.2, 1))
+        self.cube.setMaterial(mat)
+        print('Intersection!')
 
+    def check_for_intersection(self, task):
+        self.collision_traverser.traverse(self.render)
+        self.collision_traverser.addCollider(self.cylinder_collision, self.collision_handler)
+        return task.cont
+    
+    def move_camera_forward(self):
+        p = self.cam.getPos()
+        a = 1 - self.delta
+        print(p)
+        self.cam.set_pos(LPoint3f(a*p[0], a*p[1], a*p[2]))
 
+    def move_camera_backward(self):
+        p = self.camera.get_pos()
+        a = 1 + self.delta
+        print(p)
+        self.cam.set_pos(LPoint3f(a*p[0], a*p[1], a*p[2]))
+
+    def start_dragging(self):
+        self.dragging = True
+        self.last_mouse_pos = self.mouseWatcherNode.get_mouse()
+
+    def stop_dragging(self):
+        self.dragging = False
+        self.last_mouse_pos = None
+
+    def drag_camera_task(self, task):
+        if self.dragging and self.mouseWatcherNode.has_mouse():
+            curr_mouse_pos = self.mouseWatcherNode.get_mouse()
+            if self.last_mouse_pos is not None:
+                delta = curr_mouse_pos - self.last_mouse_pos
+                self.rotate_camera(delta)
+            self.last_mouse_pos = curr_mouse_pos
+        return task.cont
+
+    def rotate_camera(self, delta):
+        h_delta, p_delta = delta.x * 100, delta.y * 100
+        # self.camera.set_hpr(self.camera.get_h() - h_delta, self.camera.get_p() + p_delta, 0)
+        diff = self.cube.get_pos() - self.camera.get_pos()
+
+        print(self.cube.get_pos())
+
+        r = np.sqrt(diff[0]**2 + diff[1]**2 + diff[2]**2)
+        self.theta += self.delta
+        self.phi += self.delta
+        p = self.cube.getPos()
+        x_new = p[0] + r * p[0] * np.cos(self.phi) * np.sin(self.theta)
+        y_new = p[1] + r * p[1] * np.sin(self.phi) * np.sin(self.theta)
+        z_new = p[2] + r * p[2] * np.cos(self.theta)
+        self.cam.setPos(LPoint3f(x_new, y_new, z_new))
+        self.camera.look_at(p)
+
+    def adjust_aspect_ratio(self):
+        aspect_ratio = self.get_aspect_ratio()
+        self.camera.node().get_lens().set_aspect_ratio(aspect_ratio)
 
 
 app = MyApp()

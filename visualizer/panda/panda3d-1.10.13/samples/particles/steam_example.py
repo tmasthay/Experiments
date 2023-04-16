@@ -82,7 +82,7 @@ class ParticleDemo(ShowBase):
     # Setup lighting
     def setupLights(self):
         ambientLight = AmbientLight("ambientLight")
-        ambientLight.setColor((.4, .4, .35, 1))
+        ambientLight.setColor((0.0, .4, .35, 1))
         directionalLight = DirectionalLight("directionalLight")
         directionalLight.setDirection(LVector3(0, 8, -2.5))
         directionalLight.setColor((0.9, 0.8, 0.9, 1))
