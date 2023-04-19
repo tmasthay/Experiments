@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 
-global pre_colors
+#global pre_colors
 pre_colors = list(mcolors.CSS4_COLORS.keys())
 
 def rand_color():

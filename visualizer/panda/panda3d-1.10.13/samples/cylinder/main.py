@@ -1,5 +1,5 @@
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import AmbientLight, DirectionalLight, LVector3, NodePath, GeomVertexFormat, GeomVertexData, GeomTriangles, Geom, GeomNode, Material, Vec3
+from panda3d.core import AmbientLight, DirectionalLight, LVector3, NodePath, GeomVertexFormat, GeomVertexData, GeomTriangles, Geom, GeomNode, Material, Vec3,Point3
 from panda3d.bullet import BulletCylinderShape
 from direct.interval.IntervalGlobal import LerpFunc
 from panda3d.core import GeomVertexWriter
@@ -12,9 +12,8 @@ from panda3d.bullet import BulletDebugNode, BulletSphereShape, BulletConvexHullS
 from panda3d.bullet import BulletCharacterControllerNode
 from panda3d.bullet import BulletTriangleMesh, BulletTriangleMeshShape
 from panda3d.bullet import BulletGhostNode, BulletBoxShape
-from panda3d.core import CollisionTraverser, CollisionHandlerEvent, CollisionNode, CollisionSphere, CollisionBox, LPoint3f, WindowProperties
-
-
+from panda3d.core import CollisionTraverser, CollisionHandlerEvent, CollisionNode, CollisionSphere, CollisionBox, LPoint3f, WindowProperties, CollisionTube
+from panda3d.core import BitMask32
 
 class MyApp(ShowBase):
     def __init__(self):
@@ -105,7 +104,6 @@ class MyApp(ShowBase):
         directional_light.setDirection(LVector3(0, 0, -1))
         directional_light.setColor((0.9, 0.8, 0.9, 1))
 
-
         self.lights = []
         num_lights = 10
         for i in range(num_lights):
@@ -143,7 +141,12 @@ class MyApp(ShowBase):
         self.phi = 0.0
         self.drag_start = False
         self.cube_collision = self.create_cube_collision(1)
+        self.cube_collision.setPos(self.cube.getPos())
+        self.cube_collision.reparentTo(self.render)
+
         self.cylinder_collision = self.create_cylinder_collision(radius, height)
+        self.cylinder_collision.setPos(self.cylinder_node.getPos())
+        self.cylinder_collision.reparentTo(self.render)
         self.collision_traverser = CollisionTraverser()
         self.collision_handler = CollisionHandlerEvent()
         self.collision_handler.addInPattern('into-%in')
@@ -340,28 +343,30 @@ class MyApp(ShowBase):
 
         return NodePath(node)
     
-    def create_cube_collision(self, size=1):
-        cube_collision = CollisionBox((0, 0, 0), size)
+    def create_cube_collision(self, size):
+        box_shape = CollisionBox(Point3(-size/2, -size/2, -size/2), size, size, size)
         collision_node = CollisionNode('cube_collision')
-        collision_node.addSolid(cube_collision)
-        collision_node.setIntoCollideMask(0)
-        collision_node_path = self.cube.attachNewNode(collision_node)
-        return collision_node_path
-    
+        collision_node.addSolid(box_shape)
+        node_path = self.render.attachNewNode(collision_node)
+        node_path.setCollideMask(BitMask32.allOn())
+        return node_path
+
     def create_cylinder_collision(self, radius, height):
-        cylinder_collision = CollisionSphere((0, 0, height / 2), radius)
+        top_sphere = CollisionSphere(0, 0, height/2, radius)
+        bottom_sphere = CollisionSphere(0, 0, -height/2, radius)
         collision_node = CollisionNode('cylinder_collision')
-        collision_node.addSolid(cylinder_collision)
-        collision_node.setIntoCollideMask(0)
-        collision_node_path = self.cylinder_node.attachNewNode(collision_node)
-        return collision_node_path
+        collision_node.addSolid(top_sphere)
+        collision_node.addSolid(bottom_sphere)
+        node_path = self.render.attachNewNode(collision_node)
+        node_path.setCollideMask(BitMask32.allOn())
+        return node_path
     
     def handle_intersection(self, entry):
-        mat = Material()
-        mat.setAmbient((1, 1, 0, 1))
-        mat.setDiffuse((1, 1, 0, 1))
-        mat.setSpecular((0.2, 0.2, 0.2, 1))
-        self.cube.setMaterial(mat)
+        # mat = Material()
+        # mat.setAmbient((1, 1, 0, 1))
+        # mat.setDiffuse((1, 1, 0, 1))
+        # mat.setSpecular((0.2, 0.2, 0.2, 1))
+        # self.cube.setMaterial(mat)
         print('Intersection!')
 
     def check_for_intersection(self, task):
@@ -418,6 +423,41 @@ class MyApp(ShowBase):
     def adjust_aspect_ratio(self):
         aspect_ratio = self.get_aspect_ratio()
         self.camera.node().get_lens().set_aspect_ratio(aspect_ratio)
+
+    def inside_quad(self, p, f):
+        face = np.array(f)
+        A = face[0]
+        B = face[1]
+        C = face[2]
+        AB = B - A
+        BC = C - B
+        AP = p - A
+        BP = p - B
+        magAB = np.linalg.norm(AB)**2
+        magBC = np.linalg.norm(BC)**2
+        dotAP = np.dot(AP, AB)
+        dotBP = np.dot(BC, BP)
+        testA = 0 <= dotAP and dotAP <= magAB
+        testB = 0 <= dotBP and dotBP <= magBC
+        return testA and testB
+    
+    def segment_quad_intersect(self,a,b,face):
+        v = np.array(b - a)
+        d = lambda i,j : face[i][j] - face[0][j]
+        alpha = d(2,2) * d(1,1) - d(1,2) * d(2,1)
+        first = d(1,0) * d(2,2) - d(2,0) * d(1,2)
+        second = -d(1,0)*d(2,1) + d(1,1)*d(2,0)
+        first = - first / alpha 
+        second = - second / alpha
+        w = np.array([first, second])
+        beta = np.dot(w, v)
+        if( beta != 0.0 ):
+            gamma = np.dot(w, np.array(face[0] - a))
+            candidate = a + gamma / beta * v
+            return self.inside_quad(candidate, face), candidate
+        else:
+            return self.inside_quad(a, face), a
+        
 
 
 app = MyApp()
