@@ -19,8 +19,10 @@ def set_color_plot(**kw):
     leg_edge_color = kw.get('leg_edge_color', 'white')
     leg_label_color = kw.get('leg_label_color', 'white')
     tick_color = kw.get('tick_color', 'white')
+    title_color = kw.get('title_color', 'white')
     xlabel = kw.get('xlabel', '')
     ylabel = kw.get('ylabel', '')
+    title = kw.get('title', '')
     use_legend = kw.get('use_legend', False)
     use_grid = kw.get('use_grid', False)
     plt.xlabel(xlabel, color=axis_color)
@@ -33,8 +35,9 @@ def set_color_plot(**kw):
             labelcolor=leg_label_color
         )
     plt.grid(use_grid)
+    plt.title(title, color=title_color)
 
 def set_color_plot_global(**kw):
-    def helper():
-        set_color_plot(**kw)
+    def helper(the_title):
+        set_color_plot(the_title, **kw)
     return helper
