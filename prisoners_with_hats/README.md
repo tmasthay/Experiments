@@ -22,7 +22,7 @@ The following command-line options are available:
 | `-h`, `--help`   | Show the help message and exit. |
 | `--N N`  | Set the number of people in line. Defaults to 5. |
 | `--verbose` | Show verbose output.          |
-| `--slow` | Show output stepwise. Press enter to continue output.             |
+| `--slow` | Show verbose output stepwise. Press enter to continue output. If `verbose` is set to `False` and `slow` to `True`, the output will still show.             |
 
 ## Example
 To run the simulator with 10 people in line and verbose output, use the following command:
