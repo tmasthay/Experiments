@@ -11,7 +11,7 @@ This is a simulator for the classic "Prisoners with red and blue hats" logic puz
 ## Installation
 To get started, simply clone this repository to your local machine.
 
-git clone https://github.com/yourusername/prisoners-hats-simulator.git
+git clone https://github.com/tmasthay/prisoners-hats-simulator.git
 cd prisoners-hats-simulator
 
 ## Usage
