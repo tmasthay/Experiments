@@ -1,43 +1,36 @@
-Prisoners with Red and Blue Hats Simulator
+# Prisoners with Red and Blue Hats Simulator
 
 This is a simulator for the classic "Prisoners with red and blue hats" logic puzzle. It helps you visualize and understand the solution to the problem by simulating different scenarios with varying number of people in line.
-Table of Contents
 
-    Installation
-    Usage
-    Options
-    Example
+## Table of Contents
+- [Installation](#installation)
+- [Usage](#usage)
+- [Options](#options)
+- [Example](#example)
 
-Installation
-
+## Installation
 To get started, simply clone this repository to your local machine.
-
-bash
 
 git clone https://github.com/yourusername/prisoners-hats-simulator.git
 cd prisoners-hats-simulator
 
-Usage
-
+## Usage
 To run the simulator, use the following command:
-
-bash
 
 python main.py [options]
 
-Options
-
+## Options
 The following command-line options are available:
-Option	Description
--h, --help	Show the help message and exit.
---N N	Set the number of people in line.
---verbose	Show verbose output.
---slow	Show output slowly.
-Example
 
+| Option   | Description                       |
+|----------|-----------------------------------|
+| `-h`, `--help`   | Show the help message and exit. |
+| `--N N`  | Set the number of people in line. |
+| `--verbose` | Show verbose output.          |
+| `--slow` | Show output slowly.             |
+
+## Example
 To run the simulator with 10 people in line and verbose output, use the following command:
-
-bash
 
 python main.py --N 10 --verbose
 
