@@ -13,7 +13,7 @@ To get started, simply clone this repository to your local machine.
 
 ```
 git clone https://github.com/tmasthay/prisoners_with_hats.git
-cd prisoners-hats-simulator
+cd prisoners_with_hats
 ```
 
 ## Usage
