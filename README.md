@@ -7,7 +7,8 @@ sake of understanding or reproducing others' results. Also included are code sni
 development tasks.
 
 In the future, I will go through and make this more organized, but for now, just think of it as almost a "miscellaneous box of programs" ranging
-from research projects to a music visualizer to a simulator of a solution to the classic "prisoners with hats" logic puzzle.
+from research projects to a music visualizer to a simulator of a solution to the classic "prisoners with hats" logic puzzle. Included are also
+some projects now made obsolete by ChatGPT, such as the "GrammarlyLatex" folder.
 
 ## Table of Contents
 
