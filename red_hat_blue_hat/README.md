@@ -29,7 +29,7 @@ The following command-line options are available:
 | Option   | Description                       |
 |----------|-----------------------------------|
 | `-h`, `--help`   | Show the help message and exit. |
-| `--N N`  | Set the number of people in line. |
+| `--N N`  | Set the number of people in line. Defaults to 10. |
 | `--verbose` | Show verbose output.          |
 | `--slow` | Show output slowly.             |
 
