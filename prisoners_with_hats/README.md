@@ -3,18 +3,9 @@
 This is a simulator for the classic "Prisoners with red and blue hats" logic puzzle. It helps you visualize and understand the solution to the problem by simulating different scenarios with varying number of people in line.
 
 ## Table of Contents
-- [Installation](#installation)
 - [Usage](#usage)
 - [Options](#options)
 - [Example](#example)
-
-## Installation
-To get started, simply clone this repository to your local machine.
-
-```
-git clone https://github.com/tmasthay/prisoners_with_hats.git
-cd prisoners_with_hats
-```
 
 ## Usage
 To run the simulator, use the following command:
