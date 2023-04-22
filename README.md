@@ -1,6 +1,8 @@
-# Experiments Repository
+# Experiments
 
-Welcome to the **Experiments Repository**! This repository is a collection of various experiments to test some research ideas on the small scale for the 
+Welcome to **Experiments**! 
+
+This repository is a collection of various experiments to test some research ideas on the small scale for the 
 sake of understanding. Also included are code snippets for various fun problems and/or helper functions for repetitive development tasks.
 
 ## Table of Contents
