@@ -3,18 +3,9 @@
 This is a simulator for the classic "Prisoners with red and blue hats" logic puzzle. It helps you visualize and understand the solution to the problem by simulating different scenarios with varying number of people in line.
 
 ## Table of Contents
-- [Installation](#installation)
 - [Usage](#usage)
 - [Options](#options)
 - [Example](#example)
-
-## Installation
-To get started, simply clone this repository to your local machine.
-
-```
-git clone https://github.com/tmasthay/prisoners_with_hats.git
-cd prisoners_with_hats
-```
 
 ## Usage
 To run the simulator, use the following command:
@@ -31,7 +22,7 @@ The following command-line options are available:
 | `-h`, `--help`   | Show the help message and exit. |
 | `--N N`  | Set the number of people in line. Defaults to 5. |
 | `--verbose` | Show verbose output.          |
-| `--slow` | Show output stepwise. Press enter to continue output.             |
+| `--slow` | Show verbose output stepwise. Press enter to continue output. If `verbose` is set to `False` and `slow` to `True`, the output will still show.             |
 
 ## Example
 To run the simulator with 10 people in line and verbose output, use the following command:
