@@ -24,7 +24,7 @@ def get_subfolders(path, **kw):
     depth = kw.get('depth', 1)
     omissions = [path + '/%s'%e if '/' not in e else e for e in omissions]
     try:
-        cmd = r'find %s -depth %d -type d'%(path, depth)
+        cmd = r'find %s -maxdepth %d -type d'%(path, depth)
         u = sco(cmd)
         u = [e for e in u \
             if not e.split('/')[-1].startswith('__') \
@@ -42,10 +42,10 @@ def get_local_modules(path, **kw):
     local = kw.get('local', True)
     ext = kw.get('ext', '.py')
     res = sco(
-        r'find %s -type f -name "*%s" -depth 1'%(path, ext)
+        r'find %s -type f -name "*%s" -maxdepth 1'%(path, ext)
     )
     res2 = sco(
-        r'find %s -type f -name "*%sx" -depth 1'%(path, ext)
+        r'find %s -type f -name "*%sx" -maxdepth 1'%(path, ext)
     )
     [res.append(e) for e in res2]
     res = [e for e in res if \
