@@ -24,7 +24,7 @@ def get_subfolders(path, **kw):
     depth = kw.get('depth', 1)
     omissions = [path + '/%s'%e if '/' not in e else e for e in omissions]
     try:
-        cmd = r'find %s -type d -depth %d'%(path, depth)
+        cmd = r'find %s -depth %d -type d'%(path, depth)
         u = sco(cmd)
         u = [e for e in u \
             if not e.split('/')[-1].startswith('__') \
