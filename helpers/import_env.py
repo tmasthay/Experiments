@@ -19,6 +19,7 @@ def get_local_name(s,ext='.py'):
     
 def get_subfolders(path, **kw):
     omissions = kw.get('omissions', [])
+    inclusions = kw.get('inclusions', None)
     local = kw.get('local', True)
     ext = kw.get('ext', '.py')
     depth = kw.get('depth', 1)
@@ -32,8 +33,10 @@ def get_subfolders(path, **kw):
         ]
     except:
         u = []
-    if( len(omissions) > 0 ):
-        u = [e for e in u if e not in omissions]
+    if( len(omissions) > 0 or inclusions != None ):
+        if( inclusions != None ):
+            [omissions.append(e) for e not in inclusions] 
+        u = [e for e in u if e not in omissions] 
     if( local ):
         u = [get_local_name(e, ext) for e in u]
     return u
