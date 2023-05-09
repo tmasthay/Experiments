@@ -64,7 +64,7 @@ fast_drum_2 = {
         23, 11,
         23
     ],
-    'start' : 15
+    'start' : 18
 }
 
 fast_drum_3 = {
@@ -74,7 +74,7 @@ fast_drum_3 = {
         12, 22, 11,
         23, 11
     ],
-    'start' : 29
+    'start' : 26
 }
 
 top_fast = bpy.data.objects['Cylinder.014']
