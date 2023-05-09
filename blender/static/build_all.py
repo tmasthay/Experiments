@@ -7,8 +7,8 @@ script_directory = os.path.dirname(os.path.abspath(__file__))
 if script_directory not in sys.path:
     sys.path.append(script_directory)
 
-from main_drum import *
-from fast_drum import *
-    
-build_fast_drum()
-build_main_drum()
+main_drum = bpy.data.texts['main_drum'].as_module()
+fast_drum = bpy.data.texts['fast_drum'].as_module()
+
+fast_drum.build_fast_drum()
+main_drum.build_main_drum()
