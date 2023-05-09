@@ -5,7 +5,7 @@ scaling = bpy.data.texts['scaling'].as_module()
 def build_main_drum():
     delta = 16
     main_drum = {
-        'spacing' : [delta,delta,delta,delta+1],
+        'spacing' : [delta,delta,delta,delta],
         'start' : 9
     }
 
@@ -44,7 +44,7 @@ def build_main_drum():
     )
 
     scaling.place_spaced_sequence(
-        drum3,
+        drum4,
         main_drum['spacing'],
         scales,
         main_drum['start'] + 3 * delta,
