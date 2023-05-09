@@ -4,8 +4,8 @@ scaling = bpy.data.texts['scaling.py'].as_module()
 
 def build_fast_drum():
     top_fast = bpy.data.objects['Cylinder.014']
-    middle_fast = bpy.data.objects['Cylinder.023']
-    bottom_fast = bpy.data.objects['Cylinder.024']
+    middle_fast = bpy.data.objects['Cylinder.024']
+    bottom_fast = bpy.data.objects['Cylinder.023']
     num_fast_copies = 100
     scales = [1.0, 5.005]
 
