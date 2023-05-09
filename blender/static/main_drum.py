@@ -51,5 +51,4 @@ def build_main_drum():
         True
     )
 
-if( __name__ == "__main__" ):
-    build_main_drum()
+build_main_drum()

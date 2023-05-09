@@ -66,5 +66,4 @@ def build_fast_drum():
         True
     )
 
-if( __name__ == "__main__" ):
-    build_fast_drum()
+build_fast_drum()
