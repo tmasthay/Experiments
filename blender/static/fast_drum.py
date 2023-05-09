@@ -1,6 +1,6 @@
 import bpy
 
-scaling = bpy.data.texts['scaling'].as_module()
+scaling = bpy.data.texts['scaling.py'].as_module()
 
 def build_fast_drum():
     top_fast = bpy.data.objects['Cylinder.014']

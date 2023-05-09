@@ -1,6 +1,6 @@
 import bpy
 
-scaling = bpy.data.texts['scaling'].as_module()
+scaling = bpy.data.texts['scaling.py'].as_module()
 
 def build_main_drum():
     delta = 16
