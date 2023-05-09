@@ -6,7 +6,7 @@ def build_main_drum():
     delta = 16
     main_drum = {
         'spacing' : [delta,delta,delta,delta],
-        'start' : 9
+        'start' : 16
     }
 
     drum1 = bpy.data.objects['Cylinder.004']
