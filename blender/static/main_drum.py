@@ -5,13 +5,13 @@ scaling = bpy.data.texts['scaling.py'].as_module()
 def build_main_drum():
     delta = 16
     main_drum = {
-        'spacing' : [delta,delta,delta,delta],
+        'spacing' : [4*delta],
         'start' : 16
     }
 
     drum1 = bpy.data.objects['Cylinder.004']
     drum2 = bpy.data.objects['Cylinder.001']
-    drum3 = bpy.data.objects['Cylinder.009']
+    drum3 = bpy.data.objects['Cylinder.018']
     drum4 = bpy.data.objects['Cylinder.003']
     num_copies = 100
     scales = [1.0, 44.0]

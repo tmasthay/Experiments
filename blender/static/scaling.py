@@ -35,6 +35,7 @@ def place_spaced_sequence(
         overwrite=True
 ):
     if( overwrite ):
+        print(str(cylinder))
         delete_existing_keyframes(cylinder)
     w = [start_frame]
     for i in range(num_copies):
