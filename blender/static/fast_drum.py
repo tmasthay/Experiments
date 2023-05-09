@@ -1,5 +1,6 @@
-from scaling import *
 import bpy
+
+scaling = bpy.data.texts['scaling'].as_module()
 
 def build_fast_drum():
     top_fast = bpy.data.objects['Cylinder.014']
@@ -39,7 +40,7 @@ def build_fast_drum():
         'start' : int(2.5 * d)
     }
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         top_fast,
         fast_drum_1['spacing'],
         scales,
@@ -48,7 +49,7 @@ def build_fast_drum():
         True
     )
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         middle_fast,
         fast_drum_2['spacing'],
         scales,
@@ -57,7 +58,7 @@ def build_fast_drum():
         True
     )
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         bottom_fast,
         fast_drum_3['spacing'],
         scales,

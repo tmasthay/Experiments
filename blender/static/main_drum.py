@@ -1,5 +1,6 @@
-from scaling import *
 import bpy
+
+scaling = bpy.data.texts['scaling'].as_module()
 
 def build_main_drum():
     delta = 16
@@ -15,7 +16,7 @@ def build_main_drum():
     num_copies = 100
     scales = [1.0, 44.0]
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         drum1,
         main_drum['spacing'],
         scales,
@@ -24,7 +25,7 @@ def build_main_drum():
         True
     )
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         drum2,
         main_drum['spacing'],
         scales,
@@ -33,7 +34,7 @@ def build_main_drum():
         True
     )
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         drum3,
         main_drum['spacing'],
         scales,
@@ -42,7 +43,7 @@ def build_main_drum():
         True
     )
 
-    place_spaced_sequence(
+    scaling.place_spaced_sequence(
         drum3,
         main_drum['spacing'],
         scales,

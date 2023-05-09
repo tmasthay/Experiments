@@ -11,6 +11,8 @@ def get_scale(scale):
 def place_blip(cylinder, frame_no, scales):
     v1 = get_scale(scales[0])
     v2 = get_scale(scales[1])
+
+    print(type(v1))
     
     cylinder.scale = v1
     cylinder.keyframe_insert(data_path="scale", frame=(frame_no-1))
