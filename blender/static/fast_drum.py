@@ -12,32 +12,23 @@ def build_fast_drum():
     d = 16
     fast_drum_1 = {
         'spacing' : [
-            22, 11,
-            23, 11,
-            23, 11, 22,
-            12, 22, 11
+            32, 16
         ],
         'start' : int(1.25 * d)
     }
 
     fast_drum_2 = {
         'spacing' : [
-            11, 22,
-            12, 22, 11,
-            23, 11,
-            23
+            16, 32
         ],
-        'start' : int(1.75 * d)
+        'start' : int(2.5 * d)
     }
 
     fast_drum_3 = {
         'spacing' : [
-            11,
-            23, 11, 22,
-            12, 22, 11,
-            23, 11
+            16, 32
         ],
-        'start' : int(2.5 * d)
+        'start' : int(1.75 * d)
     }
 
     scaling.place_spaced_sequence(
