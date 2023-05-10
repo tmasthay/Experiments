@@ -12,21 +12,21 @@ def build_fast_drum():
     d = 16
     fast_drum_1 = {
         'spacing' : [
-            32, 16
+            2*d, d
         ],
         'start' : int(1.25 * d)
     }
 
     fast_drum_2 = {
         'spacing' : [
-            16, 32
+            d, 2*d, d, 2*d, 2*d 
         ],
         'start' : int(2.5 * d)
     }
 
     fast_drum_3 = {
         'spacing' : [
-            16, 32
+            d, 2*d, d, 2*d, d, d
         ],
         'start' : int(1.75 * d)
     }
