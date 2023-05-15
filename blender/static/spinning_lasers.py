@@ -56,28 +56,30 @@ def build_spinning_lasers():
     purple = (0.5, 0, 0.5, 1)
     yellow = (1.0, 1.0, 0.01, 1.0)
     orange = (1, 0.5, 0, 1)
+    scale = (0.025, 0.025, 0.025, 20)
+    emit = 20.0
 
     # Create the cylinders
     create_colored_cylinder(
         name="top1", 
         color=purple,
         location=(-0.5, 0, 10),
-        scale=(0.025, 0.025, 20),
-        emit=20.0
+        scale=scale,
+        emit=emit
     )
     create_colored_cylinder(
         name="top2", 
         color=yellow,
         location=(0.0, 0.0, 10.0),
-        scale=(0.025, 0.025, 20),
-        emit=20.0
+        scale=scale,
+        emit=emit
     )
     create_colored_cylinder(
         name="top3", 
         color=orange,
         location=(0.5, 0, 10),
-        scale=(0.025, 0.025, 20),
-        emit=20.0
+        scale=scale,
+        emit=emit
     )
 
 
