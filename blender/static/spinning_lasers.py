@@ -57,36 +57,46 @@ def create_colored_cylinder(**kw):
 def build_spinning_lasers():
     # Define the colors
     purple = (0.5, 0, 0.5, 1.0)
-    yellow = (1.0, 1.0, 0.01, 1.0)
+    yellow = (1.0, 1.0, 0.0, 1.0)
     orange = (1, 0.5, 0, 1)
+    indigo = (0.29, 0.0, .51, 1.0)
     scale = (0.025, 0.025, 20)
     emit = 30.0
-    align_point = (0,0,0)
+    align_point = (0,0,2)
+    height = 5.0
 
     # Create the cylinders
     create_colored_cylinder(
         name="top1", 
         color=purple,
-        location=(-0.5, 0, 10),
+        location=(1.0, 0.0, height),
         scale=scale,
         emit=emit
     )
     create_colored_cylinder(
         name="top2", 
         color=yellow,
-        location=(0.0, 0.0, 10.0),
+        location=(0.0, 1.0, height),
         scale=scale,
         emit=emit
     )
     create_colored_cylinder(
         name="top3", 
         color=orange,
-        location=(0.5, 0, 10),
+        location=(1.0, 1.0, height),
+        scale=scale,
+        emit=emit
+    )
+    create_colored_cylinder(
+        name="top4", 
+        color=indigo,
+        location=(0.0, 0.0, height),
         scale=scale,
         emit=emit
     )
 
-    for s in ['top%d'%i for i in range(1,4)]:
+    num_cylinders = 4
+    for s in ['top%d'%i for i in range(1,num_cylinders+1)]:
         ah.align(bpy.data.objects[s], align_point)
 
 

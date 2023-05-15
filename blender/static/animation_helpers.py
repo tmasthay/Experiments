@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Vector
 
-def align(obj, pt, axis=(0,0,1)):
+def align(obj, pt=(0,0,0), axis=(0,0,1)):
     direction = Vector(pt) - obj.location
     direction.normalize()
     rot_diff = Vector(axis).rotation_difference(direction)
