@@ -1,4 +1,5 @@
 import bpy
+import numpy as np
 ah = bpy.data.texts['animation_helpers.py'].as_module()
 
 # Define a function to create a cylinder with a given color and location
@@ -42,6 +43,7 @@ def create_colored_cylinder(**kw):
 
     # Create an Emission node
     emission_node = nodes.new(type='ShaderNodeEmission')
+    emission_node.name = "%s_emit"%name
 
     # Set the Emission color and strength
     emission_node.inputs['Color'].default_value = color
@@ -54,6 +56,49 @@ def create_colored_cylinder(**kw):
 
     # Assign it to the object
     cylinder.data.materials.append(mat)
+
+def sync_spinning_lasers(colors, scale):
+    frames_per_beat = 16
+    d = int(frames_per_beat / 4)
+    spacing = list(d * np.array([
+        3, 3, 3, 3, 3,
+        2, 1, 3, 3, 3,
+        3, 2
+    ]))
+    start_frame = 525
+    num_copies = 100
+    def controller(phase):
+        name = 'top%d'%(phase+1)
+        emit_name = 'emit_%s'%name
+        def helper(obj, frame_no, i):
+            obj.scale = (0.0, 0.0, 0.0)
+            obj.keyframe_insert(data_path="scale", frame=(frame_no-1))
+            
+            obj.scale = scale
+            obj.keyframe_insert(data_path="scale", frame=frame_no)
+            
+            emit_node = obj.data.materials[0].node_tree.nodes.get(emit_name)
+            idx = np.mod((i + phase), len(colors))
+            emit_node.inputs['Color'].default_value = colors[idx]
+            emit_node.inputs['Color'].keyframe_insert(
+                data_path="default_value", 
+                frame=frame_no
+            )
+            
+            obj.scale = (0.0,0.0,0.0)
+            obj.keyframe_insert(data_path="scale", frame=(frame_no+1))
+        
+        return helper
+    
+    num_cylinders = 4
+    for i in range(num_cylinders):
+        ah.place_spaced_sequence(
+            bpy.data.objects['top%d'%(i+1)],
+            spacing,
+            start_frame,
+            num_copies,
+            controller(i)
+        )
 
 def build_spinning_lasers():
     scale = (0.025, 0.025, 6.5)
@@ -89,7 +134,7 @@ def build_spinning_lasers():
             emit=emit
         )
         ah.align(bpy.data.objects[name], align_point)
-
+    sync_spinning_lasers(colors, scale)
 
 # # Define a function to create a cylinder with a given color and location
 # def create_colored_cylinder(**kw):
