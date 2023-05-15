@@ -48,17 +48,18 @@ def create_colored_cylinder(**kw):
     emission_node.inputs['Strength'].default_value = emit
 
     # Create an Output node and connect the Emission node to it
-    output_node = nodes.new(type='ShaderNodeOutputMaterial')
+    # output_node = nodes.new(type='ShaderNodeOutputMaterial')
+    output_node = nodes.get('Material Output')
     mat.node_tree.links.new(emission_node.outputs['Emission'], output_node.inputs['Surface'])
 
     # Assign it to the object
     cylinder.data.materials.append(mat)
 
 def build_spinning_lasers():
-    scale = (0.025, 0.025, 20)
+    scale = (0.025, 0.025, 6.5)
     emit = 30.0
     align_point = (0,0,2)
-    xy_perturb = 20.0
+    xy_perturb = 5.0
     height = 5.0
 
     colors = [
