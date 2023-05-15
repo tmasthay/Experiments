@@ -65,11 +65,11 @@ def sync_spinning_lasers(colors, scale):
         2, 1, 3, 3, 3,
         3, 2
     ]))
-    start_frame = 525
+    start_frame = 532
     num_copies = 100
     def controller(phase):
         name = 'top%d'%(phase+1)
-        emit_name = 'emit_%s'%name
+        emit_name = '%s_emit'%name
         def helper(obj, frame_no, i):
             obj.scale = (0.0, 0.0, 0.0)
             obj.keyframe_insert(data_path="scale", frame=(frame_no-1))
@@ -78,6 +78,7 @@ def sync_spinning_lasers(colors, scale):
             obj.keyframe_insert(data_path="scale", frame=frame_no)
             
             emit_node = obj.data.materials[0].node_tree.nodes.get(emit_name)
+            # emit_node = obj.data.get(emit_name)
             idx = np.mod((i + phase), len(colors))
             emit_node.inputs['Color'].default_value = colors[idx]
             emit_node.inputs['Color'].keyframe_insert(
