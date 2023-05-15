@@ -9,6 +9,8 @@ def create_colored_cylinder(**kw):
     location = kw['location']
     emit = kw['emit']
 
+    location = tuple([e/2.0 for e in location])
+
     # Check if an object with the same name already exists
     if name in bpy.data.objects:
         # If it does, delete it
@@ -53,10 +55,10 @@ def create_colored_cylinder(**kw):
 
 def build_spinning_lasers():
     # Define the colors
-    purple = (0.5, 0, 0.5, 1)
+    purple = (0.5, 0, 0.5, 1.0)
     yellow = (1.0, 1.0, 0.01, 1.0)
     orange = (1, 0.5, 0, 1)
-    scale = (0.025, 0.025, 0.025, 20)
+    scale = (0.025, 0.025, 20)
     emit = 30.0
 
     # Create the cylinders
