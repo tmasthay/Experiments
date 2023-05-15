@@ -9,7 +9,6 @@ def create_colored_cylinder(**kw):
     location = kw['location']
     emit = kw['emit']
 
-    location = tuple([e/2.0 for e in location])
 
     # Check if an object with the same name already exists
     if name in bpy.data.objects:
@@ -19,10 +18,13 @@ def create_colored_cylinder(**kw):
         bpy.ops.object.delete()
 
     # Create a new mesh object with the vertices and faces
-    bpy.ops.mesh.primitive_cylinder_add(location=location, scale=scale)
+    bpy.ops.mesh.primitive_cylinder_add(location=location)
     
     # Get the just created object
     cylinder = bpy.context.object
+
+    # Scale the cylinder
+    cylinder.scale = scale
 
     # Rename it
     cylinder.name = name
