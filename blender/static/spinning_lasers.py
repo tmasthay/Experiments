@@ -9,7 +9,6 @@ def create_colored_cylinder(**kw):
     location = kw['location']
     emit = kw['emit']
 
-
     # Check if an object with the same name already exists
     if name in bpy.data.objects:
         # If it does, delete it
@@ -62,6 +61,7 @@ def build_spinning_lasers():
     orange = (1, 0.5, 0, 1)
     scale = (0.025, 0.025, 20)
     emit = 30.0
+    align_point = (0,0,0)
 
     # Create the cylinders
     create_colored_cylinder(
@@ -85,6 +85,9 @@ def build_spinning_lasers():
         scale=scale,
         emit=emit
     )
+
+    for s in ['top%d'%i for i in range(1,4)]:
+        ah.align(bpy.data.objects[s], align_point)
 
 
 # # Define a function to create a cylinder with a given color and location

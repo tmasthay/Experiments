@@ -1,5 +1,15 @@
 import bpy
+from mathutils import Vector
 
+def align(obj, pt, axis=(0,0,1)):
+    direction = Vector(pt) - obj.location
+    direction.normalize()
+    rot_diff = Vector(axis).rotation_difference(direction)
+    obj.rotation_euler = rot_diff.to_euler()
+    bpy.context.view_layer.update()
+
+# Redraw the scene
+bpy.context.view_layer.update()
 def delete_existing_keyframes(obj):
     if obj.animation_data:
         obj.animation_data_clear()
