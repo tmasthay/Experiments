@@ -55,49 +55,39 @@ def create_colored_cylinder(**kw):
     cylinder.data.materials.append(mat)
 
 def build_spinning_lasers():
-    # Define the colors
-    purple = (0.5, 0, 0.5, 1.0)
-    yellow = (1.0, 1.0, 0.0, 1.0)
-    orange = (1, 0.5, 0, 1)
-    indigo = (0.29, 0.0, .51, 1.0)
     scale = (0.025, 0.025, 20)
     emit = 30.0
     align_point = (0,0,2)
+    xy_perturb = 20.0
     height = 5.0
 
-    # Create the cylinders
-    create_colored_cylinder(
-        name="top1", 
-        color=purple,
-        location=(1.0, 0.0, height),
-        scale=scale,
-        emit=emit
-    )
-    create_colored_cylinder(
-        name="top2", 
-        color=yellow,
-        location=(0.0, 1.0, height),
-        scale=scale,
-        emit=emit
-    )
-    create_colored_cylinder(
-        name="top3", 
-        color=orange,
-        location=(1.0, 1.0, height),
-        scale=scale,
-        emit=emit
-    )
-    create_colored_cylinder(
-        name="top4", 
-        color=indigo,
-        location=(0.0, 0.0, height),
-        scale=scale,
-        emit=emit
-    )
+    colors = [
+        (0.5, 0, 0.5, 1.0),
+        (1.0, 1.0, 0.0, 1.0),
+        (1, 0.5, 0, 1),
+        (0.29, 0.0, .51, 1.0)
+    ]
 
-    num_cylinders = 4
-    for s in ['top%d'%i for i in range(1,num_cylinders+1)]:
-        ah.align(bpy.data.objects[s], align_point)
+    locations = [
+        (-xy_perturb, 0.0, height),
+        (xy_perturb, 0.0, height),
+        (0.0, -xy_perturb, height),
+        (0.0, xy_perturb, height)
+    ]
+
+    assert(len(locations) == len(colors))
+
+    # Create the cylinders
+    for i in range(len(colors)):
+        name = 'top%d'%(i+1)
+        create_colored_cylinder(
+            name=name,
+            color=colors[i],
+            location=locations[i],
+            scale=scale,
+            emit=emit
+        )
+        ah.align(bpy.data.objects[name], align_point)
 
 
 # # Define a function to create a cylinder with a given color and location
