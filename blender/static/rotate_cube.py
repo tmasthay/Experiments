@@ -45,7 +45,7 @@ def sync_rotation(theta, axis):
         controller()
     )
 
-def build_spinning_lasers():
+def build_rotate_cube():
     theta = 1.0
     axis = (0,0,1)
     sync_rotation(theta, axis)
