@@ -24,7 +24,7 @@ def sync_rotation(theta, axis):
         4, 1, 1,
         3
     ]))
-    start_frame = 972
+    start_frame = 1036
     num_copies = 100
     def controller():
         def helper(obj, frame_no, i):
