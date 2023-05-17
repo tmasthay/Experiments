@@ -1,6 +1,13 @@
 import bpy
 from mathutils import Vector
 
+def delete_object(name):
+    if name in bpy.data.objects:
+        # If it does, delete it
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.data.objects[name].select_set(True)
+        bpy.ops.object.delete()
+        
 def align(obj, pt=(0,0,0), axis=(0,0,1)):
     direction = Vector(pt) - obj.location
     direction.normalize()
