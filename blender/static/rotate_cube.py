@@ -10,12 +10,21 @@ def sync_rotation(theta, axis):
 
     frames_per_beat = 16
     d = int(frames_per_beat / 4)
+    # spacing = list(d * np.array([
+    #     3, 3, 3, 3, 3,
+    #     2, 1, 3, 3, 3,
+    #     3, 2
+    # ]))
     spacing = list(d * np.array([
-        3, 3, 3, 3, 3,
-        2, 1, 3, 3, 3,
-        3, 2
+        2, 1,
+        4,
+        4, 1, 1,
+        3, 2, 1,
+        4,
+        4, 1, 1,
+        3
     ]))
-    start_frame = 532
+    start_frame = 972
     num_copies = 100
     def controller():
         def helper(obj, frame_no, i):
