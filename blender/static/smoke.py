@@ -2,6 +2,9 @@ import bpy
 ah = bpy.data.texts['animation_helpers.py'].as_module()
 
 def build_smoke():
+    print('Not supported yet')
+
+def build_smoke_nope():
     domain = 'smoke_domain'
     flow = 'smoke_flow'
 
