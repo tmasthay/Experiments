@@ -2,14 +2,28 @@ import bpy
 import math
 import numpy as np
 from typing import Any
-
-
-D = bpy.data
-C = bpy.context
-
-import bpy
 from collections import OrderedDict
 import copy
+from functools import wraps
+
+
+def none_handler(defaults):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for key, handler in defaults.items():
+                if kwargs.get(key) is None:
+                    kwargs[key] = handler()
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+context_handler = none_handler({'C': lambda: bpy.context})
+data_handler = none_handler({'D': lambda: bpy.data})
+bpy_handler = none_handler({'C': lambda: bpy.context, 'D': lambda: bpy.data})
 
 
 def expand_shape(x, l):
@@ -161,7 +175,8 @@ def get_uniform_transformations(*, start, interval, duration, fps, seq):
     return list(zip(frames, seq_repeats))
 
 
-def animate_property(obj, prop, stamps):
+@context_handler
+def animate_property(obj, prop, stamps, C=None):
     if not hasattr(obj, prop):
         raise ValueError(f"The object does not have a property '{prop}'.")
 
@@ -180,37 +195,8 @@ def animate(obj, d: OrderedDict):
         animate_property(obj, prop, stamps)
 
 
-def main():
-    # cube = D.objects.get("Cube")
-    # if cube:
-    #     h = 10
-    #     animation_data = OrderedDict(
-    #         [
-    #             (
-    #                 "scale",
-    #                 [
-    #                     (0, (0, 0, 0)),
-    #                     (100, (1, 1, 1)),
-    #                     (200, (5, 5, 5)),
-    #                     (300, (0, 0, 0)),
-    #                 ],
-    #             ),
-    #             (
-    #                 "location",
-    #                 [
-    #                     (0, (0, 0, 0)),
-    #                     (100, (0, 0, h)),
-    #                     (200, (0, h, h)),
-    #                     (300, (0, h, 0)),
-    #                 ],
-    #             ),
-    #         ]
-    #     )
-    #     animate(cube, animation_data)
-    # else:
-    #     print("Cube object not found in the scene.")
-    # vals = [0, 3, 5, 7, 9, 11, 13, 15]
-    # seq = [4, 8, 12, 16]
+@bpy_handler
+def main(C=None, D=None):
     seq = list(range(16))
     beat_unit = 16
     num_units = 4
@@ -220,20 +206,23 @@ def main():
     frames = beats_to_frames(beats=beats, bpm=bpm, fps=fps)
 
     scale_seq = [(1, 1, 1), (1, 1, 2), (1, 2, 1), (2, 1, 1)]
+    rotate_seq = [(45, 45, 45), (90, 90, 90), (135, 135, 135), (180, 180, 180)]
     inter_scale_seq = copy.deepcopy(scale_seq)
+    inter_rotate_seq = copy.deepcopy(rotate_seq)
     vals = cycle(seq=scale_seq, inter_seq=inter_scale_seq)
+    vals_rotate = cycle(seq=rotate_seq, inter_seq=inter_rotate_seq)
     frames = expand_frames(frames=frames, width=len(vals[0]) // 2)
     final = sim_join(frames=collapse(frames), vals=collapse(vals))
+    final_rotate = sim_join(frames=collapse(frames), vals=collapse(vals_rotate))
     print(frames)
     print(expand_shape(vals, len(frames)))
     print(final)
-    # print(repeat_shape(short=vals, long=frames))
-    # sim = sim_join(frames=frames, vals=vals)
-    # sim = blip_all(seq=sim, init_val=(0, 0, 0))
 
     cube = D.objects.get("Cube")
     delete_existing_keyframes(cube)
-    animation_data = OrderedDict([("scale", final)])
+    animation_data = OrderedDict(
+        [("scale", final), ("rotation_euler", final_rotate)]
+    )
     animate(cube, animation_data)
 
 
