@@ -238,7 +238,9 @@ def expand_shape(x, l):
         return (x * int(np.ceil(l / s)))[:l]
 
 
-def cycle(*, seq: list, inter_seq: list):
+def cycle(*, seq: list, inter_seq: list = None):
+    if inter_seq is None:
+        inter_seq = copy.deepcopy(seq)
     l = math.lcm(len(seq), len(inter_seq))
     seq, inter_seq = expand_shape(seq, l), expand_shape(inter_seq, l)
 
@@ -247,7 +249,8 @@ def cycle(*, seq: list, inter_seq: list):
             return [seq[i], inter_seq[i], seq[0]]
         return [seq[i], inter_seq[i], seq[i + 1]]
 
-    return [elem(i) for i in range(l)]
+    u = np.array([elem(i) for i in range(l)]).flatten()
+    return np.array(np.array_split(u, len(u) // 3))
 
 
 def delete_existing_keyframes(obj):
@@ -293,14 +296,10 @@ def beat_subdiv(*, seq, subdivs, start_beat):
     return res.flatten()
 
 
-def sim_join(*, frames: list, vals: list):
-    frames, vals = list(frames), list(vals)
-    if len(frames) > len(vals):
-        vals = (len(frames) // len(vals) + 1) * vals
-        vals = vals[: len(frames)]
-    else:
-        frames = (len(vals) // len(frames) + 1) * frames
-        frames = frames[: len(vals)]
+def sim_join(*, frames: np.ndarray, vals: np.ndarray):
+    while len(vals) < len(frames):
+        vals = np.concatenate((vals, vals))
+    vals = [list(e) for e in vals[: len(frames)]]
     return list(zip(frames, vals))
 
 
