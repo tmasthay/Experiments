@@ -1,4 +1,13 @@
-from helpers import *
+from helpers import (
+    beat_sequence,
+    beats_to_frames,
+    cycle,
+    expand_frames,
+    collapse,
+    sim_join,
+    expand_shape,
+)
+import copy
 
 
 def main():

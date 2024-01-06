@@ -7,6 +7,208 @@ from typing import Any
 import copy
 from functools import wraps
 import os
+from omegaconf import DictConfig
+from omegaconf.listconfig import ListConfig
+from omegaconf.nodes import AnyNode
+import hydra
+
+
+class LocalNamespace:
+    types = {
+        "int": int,
+        "float": float,
+        "complex": complex,
+        "float32": np.float32,
+        "float64": np.float64,
+        "int8": np.int8,
+        "int16": np.int16,
+        "int32": np.int32,
+        "int64": np.int64,
+        "uint8": np.uint8,
+        "uint16": np.uint16,
+        "uint32": np.uint32,
+        "uint64": np.uint64,
+        "str": str,
+        "bool": bool,
+    }
+
+
+# def easy_main(func):
+#     @wraps(func)
+#     def wrapper(*args, **kwargs):
+#         hydra_main = hydra.main(
+#             config_path='.', config_name='config.yaml', version_base=None
+#         )
+#         return hydra_main(func)(*args, **kwargs)
+
+#     return wrapper
+
+
+def easy_main(
+    preprocess_func=None,
+    *,
+    config_path=None,
+    config_name='config.yaml',
+    version_base=None,
+):
+    config_path = config_path or os.getcwd()
+    if preprocess_func is None:
+        preprocess_func = (
+            lambda cfg: cfg
+        )  # Default to identity function if no preprocess function is provided
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Apply hydra_main_decorator to a new inner function
+            @hydra.main(
+                config_path=config_path,
+                config_name=config_name,
+                version_base=version_base,
+            )
+            def hydra_main(cfg: DictConfig, *args_dummy, **kwargs_dummy):
+                # Preprocess cfg using the preprocess function
+                cfg = preprocess_func(cfg)
+                return func(cfg, *args_dummy, **kwargs_dummy)
+
+            # Call the hydra_main function with args and kwargs
+            return hydra_main(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+class DotDict:
+    def __init__(self, d):
+        if type(d) is DotDict:
+            self.__dict__.update(d.__dict__)
+        else:
+            self.__dict__.update(d)
+
+    def set(self, k, v):
+        self.__dict__[k] = v
+
+    def get(self, k):
+        return getattr(self, k)
+
+    def __setitem__(self, k, v):
+        self.set(k, v)
+
+    def __getitem__(self, k):
+        return self.get(k)
+
+    def getd(self, k, v):
+        return self.__dict__.get(k, v)
+
+    def setdefault(self, k, v):
+        self.__dict__.setdefault(k, v)
+
+    def keys(self):
+        return self.__dict__.keys()
+
+    def items(self):
+        return self.__dict__.items()
+
+    def values(self):
+        return self.__dict__.values()
+
+    def has(self, k):
+        return hasattr(self, k)
+
+    def has_all(self, *keys):
+        return all([self.has(k) for k in keys])
+
+    def has_all_type(self, *keys, lcl_type=None):
+        return all(
+            [self.has(k) and type(self.get(k)) is lcl_type for k in keys]
+        )
+
+    def update(self, d):
+        self.__dict__.update(DotDict.get_dict(d))
+
+    def dict(self):
+        return self.__dict__
+
+    def __str__(self):
+        return str(self.__dict__)
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    @staticmethod
+    def get_dict(d):
+        if isinstance(d, DotDict):
+            return d.dict()
+        else:
+            return d
+
+
+def convert_config(obj, list_protect="list_protect", dtype=np.float32):
+    if isinstance(obj, DictConfig):
+        obj = DotDict(obj.__dict__['_content'])
+    elif isinstance(obj, dict):
+        obj = DotDict(obj)
+
+    if isinstance(obj, DotDict):
+        if list(obj.keys()) == ['type', 'value']:
+            return LocalNamespace.types[obj['type']](obj['value']._value())
+
+        if 'default_type' not in obj.keys():
+            obj['default_type'] = dtype
+        else:
+            obj['default_type'] = LocalNamespace.types[obj['default_type']]
+
+        for key, value in obj.items():
+            if isinstance(value, AnyNode):
+                obj[key] = obj['default_type'](value._value())
+
+        for key, value in obj.items():
+            if key != list_protect:
+                obj[key] = convert_config(value, list_protect)
+    elif isinstance(obj, list) or isinstance(obj, ListConfig):
+        if type(obj[0]) == str:
+            return np.array(obj[1:], dtype=LocalNamespace.types[obj[0]])
+        else:
+            return np.array(obj, dtype=dtype)
+    return obj
+
+
+def numpy_lists(name=0, list_protect="list_protect"):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Retrieve the configuration object
+            if isinstance(name, int):
+                if name >= len(args) or not isinstance(args[name], DictConfig):
+                    raise ValueError(
+                        "Configuration object not found at the specified index"
+                        " in args."
+                    )
+                # Modify args in place
+                args = list(args)  # Convert args to a mutable list
+                args[name] = convert_config(args[name], list_protect)
+                args = tuple(args)  # Convert back to tuple
+            elif isinstance(name, str):
+                if name not in kwargs or not isinstance(
+                    kwargs[name], DictConfig
+                ):
+                    raise ValueError(
+                        "Configuration object not found for the specified key"
+                        " in kwargs."
+                    )
+                # Modify kwargs in place
+                kwargs[name] = convert_config(kwargs[name], list_protect)
+            else:
+                raise ValueError(
+                    "Argument 'name' must be either an integer or a string."
+                )
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def none_handler(defaults):
@@ -53,37 +255,15 @@ def delete_existing_keyframes(obj):
         obj.animation_data_clear()
 
 
-def beat_sequence(*, seq: list, beat_unit: int, num_units: int):
-    res = copy.deepcopy(seq)
-    shifted_vals = copy.deepcopy(seq)
-    for _ in range(num_units - 1):
-        shifted_vals = [shifted_vals[i] + beat_unit for i in range(len(seq))]
-        res += shifted_vals
-    return res
+def beat_sequence(*, seq: np.ndarray, beat_unit: int, num_units: int):
+    increments = np.arange(1, num_units) * beat_unit
+    res = np.vstack([seq + increment for increment in increments])
+    return np.concatenate((seq, res.flatten()))
 
 
 def beats_to_frames(beats, bpm, fps):
-    fpm = fps * 60  # Frames per minute
-    fpb = fpm / bpm  # Frames per beat
-    accumulated_error = 0.0
-    beat_to_frame_mapping = []
-
-    for beat in beats:
-        # Calculate the exact frame for the current beat
-        exact_frame = beat * fpb
-        # accumulated_error += exact_frame - math.floor(exact_frame)
-        frame = round(exact_frame)
-        accumulated_error = exact_frame - frame
-
-        # if accumulated_error >= 1.0:
-        #     frame = math.ceil(exact_frame)
-        #     accumulated_error -= 1.0
-        # else:
-        #     frame = math.floor(exact_frame)
-
-        beat_to_frame_mapping.append(frame)
-
-    return beat_to_frame_mapping
+    exact_frames = beats * fps * 60 / bpm
+    return np.round(exact_frames).astype(int)
 
 
 def expand_frames(frames, width=1):
@@ -103,6 +283,14 @@ def collapse(arr):
         else:
             res.append(e)
     return res
+
+
+def beat_subdiv(*, seq, subdivs, start_beat):
+    unit = 1.0 / subdivs
+    res = copy.deepcopy(seq)
+    for i in range(len(res)):
+        res[i] = unit * (res[i] + start_beat + i * subdivs)
+    return res.flatten()
 
 
 def sim_join(*, frames: list, vals: list):
@@ -218,3 +406,43 @@ def animate(d: dict, *, obj='active'):
 #         return module.main
 #     else:
 #         print(f"No callable 'main' function found in {file_path}")
+
+
+def demo_subdiv():
+    seq = np.array(
+        [[1.0, 3], [2, 3], [1, 2], [1, 3], [2, 3], [1, 2], [1, 3], [2, 3]]
+    )
+    print(f'original:\n{seq}')
+    final = beat_subdiv(seq=seq, subdivs=4, start_beat=0)
+    print(f'beat_subdiv:\n{final}')
+    return final, seq
+
+
+def demo_beat_frames(x):
+    beats = beat_sequence(seq=x, beat_unit=int(np.ceil(max(x))), num_units=4)
+    frames = beats_to_frames(beats=beats, bpm=120, fps=32)
+
+    print(f'beat_sequence:\n{beats}')
+    print(f'beats_to_frames:\n{frames}')
+    return frames
+
+
+def get_frames(cfg: DictConfig):
+    cfg = convert_config(cfg)
+    cfg.subdiv_seq = beat_subdiv(
+        seq=cfg.seq, subdivs=cfg.subdivs, start_beat=cfg.start_beat
+    )
+    cfg.beats = beat_sequence(
+        seq=cfg.subdiv_seq, beat_unit=cfg.beat_unit, num_units=cfg.num_units
+    )
+    cfg.frames = beats_to_frames(beats=cfg.beats, bpm=cfg.bpm, fps=cfg.fps)
+    return cfg
+
+
+if __name__ == "__main__":
+    x, original = demo_subdiv()
+    y = demo_beat_frames(x)
+    print(
+        '(beat_to_frames % 16) /'
+        f' 4:\n{np.array((y % 16) / 4, dtype=int).reshape(-1,2)}'
+    )
