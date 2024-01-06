@@ -48,7 +48,7 @@ def easy_main(
     preprocess_func=None,
     *,
     config_path=None,
-    config_name='config.yaml',
+    config_name="config.yaml",
     version_base=None,
 ):
     config_path = config_path or os.getcwd()
@@ -146,22 +146,22 @@ class DotDict:
 
 def convert_config(obj, list_protect="list_protect", dtype=np.float32):
     if isinstance(obj, DictConfig):
-        obj = DotDict(obj.__dict__['_content'])
+        obj = DotDict(obj.__dict__["_content"])
     elif isinstance(obj, dict):
         obj = DotDict(obj)
 
     if isinstance(obj, DotDict):
-        if list(obj.keys()) == ['type', 'value']:
-            return LocalNamespace.types[obj['type']](obj['value']._value())
+        if list(obj.keys()) == ["type", "value"]:
+            return LocalNamespace.types[obj["type"]](obj["value"]._value())
 
-        if 'default_type' not in obj.keys():
-            obj['default_type'] = dtype
+        if "default_type" not in obj.keys():
+            obj["default_type"] = dtype
         else:
-            obj['default_type'] = LocalNamespace.types[obj['default_type']]
+            obj["default_type"] = LocalNamespace.types[obj["default_type"]]
 
         for key, value in obj.items():
             if isinstance(value, AnyNode):
-                obj[key] = obj['default_type'](value._value())
+                obj[key] = obj["default_type"](value._value())
 
         for key, value in obj.items():
             if key != list_protect:
@@ -225,9 +225,9 @@ def none_handler(defaults):
     return decorator
 
 
-context_handler = none_handler({'C': lambda: bpy.context})
-data_handler = none_handler({'D': lambda: bpy.data})
-bpy_handler = none_handler({'C': lambda: bpy.context, 'D': lambda: bpy.data})
+context_handler = none_handler({"C": lambda: bpy.context})
+data_handler = none_handler({"D": lambda: bpy.data})
+bpy_handler = none_handler({"C": lambda: bpy.context, "D": lambda: bpy.data})
 
 
 def expand_shape(x, l):
@@ -275,7 +275,7 @@ def expand_frames(frames, width=1):
     res = []
     for frame in frames:
         res.append([frame + i for i in range(-width, width + 1)])
-    return res
+    return np.array(res)
 
 
 def collapse(arr):
@@ -379,8 +379,8 @@ def animate_property(obj, prop, stamps, C=None):
         obj.keyframe_insert(data_path=prop)
 
 
-def animate(d: dict, *, obj='active'):
-    if obj == 'active':
+def animate(d: dict, *, obj="active"):
+    if obj == "active":
         obj = bpy.context.active_object
     for prop, stamps in d.items():
         animate_property(obj, prop, stamps)
@@ -411,9 +411,9 @@ def demo_subdiv():
     seq = np.array(
         [[1.0, 3], [2, 3], [1, 2], [1, 3], [2, 3], [1, 2], [1, 3], [2, 3]]
     )
-    print(f'original:\n{seq}')
+    print(f"original:\n{seq}")
     final = beat_subdiv(seq=seq, subdivs=4, start_beat=0)
-    print(f'beat_subdiv:\n{final}')
+    print(f"beat_subdiv:\n{final}")
     return final, seq
 
 
@@ -421,8 +421,8 @@ def demo_beat_frames(x):
     beats = beat_sequence(seq=x, beat_unit=int(np.ceil(max(x))), num_units=4)
     frames = beats_to_frames(beats=beats, bpm=120, fps=32)
 
-    print(f'beat_sequence:\n{beats}')
-    print(f'beats_to_frames:\n{frames}')
+    print(f"beat_sequence:\n{beats}")
+    print(f"beats_to_frames:\n{frames}")
     return frames
 
 
@@ -442,6 +442,6 @@ if __name__ == "__main__":
     x, original = demo_subdiv()
     y = demo_beat_frames(x)
     print(
-        '(beat_to_frames % 16) /'
-        f' 4:\n{np.array((y % 16) / 4, dtype=int).reshape(-1,2)}'
+        "(beat_to_frames % 16) /"
+        f" 4:\n{np.array((y % 16) / 4, dtype=int).reshape(-1,2)}"
     )

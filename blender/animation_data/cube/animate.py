@@ -35,7 +35,7 @@ def main():
     # act_obj = C.active_object
     # delete_existing_keyframes(act_obj)
     animation_data = {"scale": final, "rotation_euler": final_rotate}
-    with open('keyframes.pydict', 'w') as f:
+    with open("keyframes.pydict", "w") as f:
         f.write(str(animation_data))
 
 
