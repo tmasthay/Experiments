@@ -1,6 +1,6 @@
 import bpy
 import os
-from . import helpers
+from . import tanimate_helpers as th
 
 
 class TanimateOperator(bpy.types.Operator):
@@ -11,13 +11,16 @@ class TanimateOperator(bpy.types.Operator):
         name="keyframes", description="keyframes"
     )
     overwrite: bpy.props.BoolProperty(name="overwrite", description="overwrite")
+    path: bpy.props.StringProperty(
+        description="path",
+        default=(
+            "/home/tyler/Documents/repos/Experiments/blender/animation_data"
+        ),
+    )
 
     def execute(self, context):
         if not self.keyframes.startswith(os.sep):
-            root = os.path.abspath(
-                os.path.join(os.environ['BLENDER_DEV_PATH'], 'animation_data')
-            )
-            self.keyframes = os.path.join(root, self.keyframes)
+            self.keyframes = os.path.join(self.path, self.keyframes)
             if not self.keyframes.endswith('.pydict'):
                 self.keyframes = os.path.join(
                     self.keyframes, 'keyframes.pydict'
@@ -30,6 +33,6 @@ class TanimateOperator(bpy.types.Operator):
 
         for obj in bpy.context.selected_objects:
             if self.overwrite:
-                helpers.delete_existing_keyframes(obj)
-            helpers.animate(animation_data, obj=obj)
+                th.delete_existing_keyframes(obj)
+            th.animate(animation_data, obj=obj)
         return {'FINISHED'}
