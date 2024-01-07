@@ -1,0 +1,21 @@
+---
+seq:
+  - float32
+  - [0]
+
+beat_unit: 8
+num_units: 40
+bpm: 128
+fps: 24
+subdivs: 1
+start_beat: 128
+default_type: int
+
+anim:
+  active_material:
+    node_tree:
+      nodes:
+        "Noise Texture":
+          inputs:
+            Distortion:
+              default_value: [[-10.0], [10.0]]
