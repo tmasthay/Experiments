@@ -1,0 +1,122 @@
+theater: africa.el_alamein
+
+africa:
+  tobruk: 
+    begin:
+      month: April
+      day: 10
+      year: 1941
+
+    end:
+      month: November
+      day: 7
+      year: 1941
+
+    victor: allies
+    
+  el_alamein:
+    first:
+      begin:
+        month: July
+        day: 1
+        year: 1942
+
+      end:
+        month: July
+        day: 27
+        year: 1942
+
+      victor: stalemate
+
+    second:
+      begin:
+        month: October
+        day: 23
+        year: 1942
+
+      end:
+        month: November
+        day: 4
+        year: 1942
+
+      victor: allies
+
+mainland_europe:
+  normandy:
+    begin:
+      month: June
+      day: 6
+      year: 1944
+
+    end:
+      month: August
+      day: 25
+      year: 1944
+
+    victor: allies
+    
+  battle_of_britain:
+    begin:
+      month: July
+      day: 10
+      year: 1940
+
+    end:
+      month: October
+      day: 31
+      year: 1940
+
+    victor: united kingdom
+    
+  fall_of_france:
+    begin:
+      month: May
+      day: 10
+      year: 1940
+
+    end:
+      month: June
+      day: 25
+      year: 1940
+
+    victor: axis powers
+
+soviet_theater:
+  stalingrad:
+    begin:
+      month: August
+      day: 23
+      year: 1942
+
+    end:
+      month: February
+      day: 2
+      year: 1943
+
+    victor: soviet union
+    
+  kursk:
+    begin:
+      month: July
+      day: 5
+      year: 1943
+
+    end:
+      month: August
+      day: 23
+      year: 1943
+
+    victor: soviet union
+    
+  moscow:
+    begin:
+      month: October
+      day: 2
+      year: 1941
+
+    end:
+      month: January
+      day: 7
+      year: 1942
+
+    victor: soviet union
