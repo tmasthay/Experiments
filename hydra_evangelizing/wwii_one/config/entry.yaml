@@ -1,7 +1,7 @@
 theater: africa.el_alamein
 
 africa:
-  tobruk: 
+  tobruk:
     begin:
       month: April
       day: 10
@@ -13,7 +13,7 @@ africa:
       year: 1941
 
     victor: allies
-    
+
   el_alamein:
     first:
       begin:
@@ -54,7 +54,7 @@ mainland_europe:
       year: 1944
 
     victor: allies
-    
+
   battle_of_britain:
     begin:
       month: July
@@ -67,7 +67,7 @@ mainland_europe:
       year: 1940
 
     victor: united kingdom
-    
+
   fall_of_france:
     begin:
       month: May
@@ -94,7 +94,7 @@ soviet_theater:
       year: 1943
 
     victor: soviet union
-    
+
   kursk:
     begin:
       month: July
@@ -107,7 +107,7 @@ soviet_theater:
       year: 1943
 
     victor: soviet union
-    
+
   moscow:
     begin:
       month: October
