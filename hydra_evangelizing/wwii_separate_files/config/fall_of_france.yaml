@@ -1,0 +1,10 @@
+fall_of_france:
+  begin:
+    month: May
+    day: 10
+    year: 1940
+  end:
+    month: June
+    day: 25
+    year: 1940
+  victor: Axis

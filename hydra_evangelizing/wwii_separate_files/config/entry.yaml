@@ -1,0 +1,16 @@
+theater: africa.el_alamein
+
+case_map:
+  africa:
+    tobruk: tobruk.yaml
+    el_alamein: el_alamein.yaml
+
+  mainland_europe:
+    normandy: normandy.yaml
+    battle_of_britain: battle_of_britain.yaml
+    fall_of_france: fall_of_france.yaml
+
+  soviet_theater:
+    stalingrad: stalingrad.yaml
+    kursk: kursk.yaml
+    moscow: moscow.yaml
