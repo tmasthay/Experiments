@@ -1,7 +1,6 @@
 import hydra
 from omegaconf import DictConfig
 from helpers import hydra_kw
-from rich import print as rprint
 
 config_path = 'config'
 config_name = 'entry'
@@ -9,7 +8,7 @@ config_name = 'entry'
 
 @hydra_kw(use_cfg=True)
 def print_case(cfg):
-    rprint(cfg)
+    print(cfg)
 
 
 @hydra.main(config_path=config_path, config_name=config_name, version_base=None)
