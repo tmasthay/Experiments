@@ -1,0 +1,17 @@
+defaults:
+  - _self_
+  - constructive: default
+  - criticism: default
+  - joke: default
+
+constructive:
+  prefix: "Compliment, aka, the mandatory disingenuous compliment I give so as to not alienate you"
+  suffix: "\n"
+
+criticism:
+  prefix: "Criticism, aka, 'the fun part'"
+  suffix: "\n"
+
+joke:
+  prefix: "Joke, aka, the defense mechanism"
+  suffix: "\n"

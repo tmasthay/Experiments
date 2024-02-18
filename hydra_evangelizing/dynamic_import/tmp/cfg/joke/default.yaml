@@ -1,0 +1,4 @@
+callback: [dimport, joke|phd]
+args: []
+kwargs:
+  nic_cage: true
