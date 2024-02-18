@@ -1,0 +1,7 @@
+defaults:
+  - plt: default.yaml
+
+shape: (10, 20, 30)
+iter:
+  none_dims: [-1]
+  strides: [3, 3, 1]
