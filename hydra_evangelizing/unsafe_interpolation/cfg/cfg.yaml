@@ -1,0 +1,6 @@
+defaults:
+  - _self_
+  - plt: default
+  - plt/style: default
+
+t: [-1, 1, 1000]

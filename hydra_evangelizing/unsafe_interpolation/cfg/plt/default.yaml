@@ -1,0 +1,14 @@
+x:
+  exponent: 2
+  data: self.t**self.plt.x.exponent
+  label: rf"$t^{self.plt.x.exponent}$"
+  style: self.plt.style.warm
+
+y:
+  exponent: 3
+  data: self.t**self.plt.y.exponent
+  label: rf"$t^{self.plt.y.exponent}$"
+  style: self.plt.style.cool
+
+save:
+  filename: polynomial.jpg

@@ -1,0 +1,16 @@
+x:
+  frequency: eval(2 * np.pi)
+  data: np.cos(self.plt.x.frequency * self.t)
+  frequency_str: 2 \pi
+  label: rf"$\cos({self.plt.x.frequency_str} t)$"
+  style: self.plt.style.warm
+
+y:
+  frequency: eval(2 * np.pi)
+  data: np.sin(self.plt.y.frequency * self.t)
+  frequency_str: 2 \pi
+  label: rf"$\sin({self.plt.y.frequency_str} t)$"
+  style: self.plt.style.cool
+
+save:
+  filename: trig.jpg

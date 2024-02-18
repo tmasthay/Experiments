@@ -1,0 +1,7 @@
+warm:
+  color: red
+  linestyle: solid
+
+cool:
+  color: blue
+  linestyle: dashed

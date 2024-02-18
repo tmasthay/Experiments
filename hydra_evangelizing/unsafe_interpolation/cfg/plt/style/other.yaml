@@ -1,0 +1,7 @@
+warm:
+  color: orange
+  linestyle: solid
+
+cool:
+  color: violet
+  linestyle: dashed
