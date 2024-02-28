@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+  - optimizer: ${chosen}
+  - loss: ${chosen}
+
+max_iters: 20
+retrain: false

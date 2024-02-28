@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - chosen: mine
+  - train: ${chosen}
+
+a: 1
+b: ${a}
+c:
+  d: 30
+e: ${c.d}
