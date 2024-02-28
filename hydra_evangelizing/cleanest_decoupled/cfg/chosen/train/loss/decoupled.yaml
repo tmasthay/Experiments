@@ -1,1 +1,3 @@
 name: cross_correlation
+
+regularization: ${chosen.param_that_can_be_mixed_and_matched}

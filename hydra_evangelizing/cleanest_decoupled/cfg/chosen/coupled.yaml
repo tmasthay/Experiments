@@ -1,8 +1,8 @@
 defaults:
   - _self_
   - train: ${chosen}
+  - train/loss: ${chosen}
+  - train/optimizer: ${chosen}
 
-f: 10
-e: 20
-
-filename: yeah
+only_exists_in_coupled_configs_will_get_rejected_if_you_try_to_use_it_with_decoupled_type_configs: 10
+param_that_can_be_mixed_and_matched: yo_yo_yo

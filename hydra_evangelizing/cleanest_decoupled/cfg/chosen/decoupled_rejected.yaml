@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+  - train: decoupled
+  - train/loss: decoupled
+  - train/optimizer: coupled
+
+param_that_can_be_mixed_and_matched: yaw_yaw_yaw

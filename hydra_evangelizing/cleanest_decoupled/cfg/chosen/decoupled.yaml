@@ -1,5 +1,7 @@
 defaults:
   - _self_
-  - train: mine
+  - train: decoupled
+  - train/loss: coupled
+  - train/optimizer: decoupled
 
-some_custom_param: yo_yo_yo
+param_that_can_be_mixed_and_matched: naw_naw_naw
