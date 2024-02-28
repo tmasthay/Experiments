@@ -1,0 +1,5 @@
+defaults:
+  - _self_
+  - train: mine
+
+some_custom_param: yo_yo_yo

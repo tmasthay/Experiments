@@ -1,0 +1,8 @@
+defaults:
+  - _self_
+  - train: ${chosen}
+
+f: 10
+e: 20
+
+filename: yeah
