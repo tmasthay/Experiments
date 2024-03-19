@@ -1,0 +1,53 @@
+num_days: 1
+
+priority_criteria:
+  refactor:
+    - - code_smells
+      - 2
+    - - performance
+      - 6
+    - - readability
+      - 8
+
+  features:
+    - - new_functionality
+      - 9
+    - - user_requested_features
+      - 7
+    - - competitive_edge_improvements
+      - 5
+
+  bug_fixes:
+    - - critical_errors
+      - 10
+    - - user_reported_issues
+      - 8
+    - - minor_glitches
+      - 4
+
+  documentation:
+    - - api_documentation_update
+      - 3
+    - - feature_documentation
+      - 6
+    - - internal_wiki_maintenance
+      - 2
+
+  testing:
+    - - unit_tests_for_new_features
+      - 7
+    - - regression_tests
+      - 5
+    - - integration_testing
+      - 8
+
+action_plan:
+  tasks:
+    - critical_errors
+    - unit_tests_for_new_features
+
+debrief:
+  carry_over_tasks:
+    - new_functionality
+    - performance
+  comments: ""
