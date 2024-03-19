@@ -1,32 +1,8 @@
-num_days: 1
-start_date: March 19, 2024
+# Treat the template below like a checklist.
+#     The actual management of priorities is better done through kanban.
 
-- priority_criteria:
-    refactor:
-      - -
-        -
-
-    features:
-      - -
-        -
-
-    bug_fixes:
-      - -
-        -
-
-    documentation:
-      - -
-        -
-
-    testing:
-      - -
-        -
-
-  action_plan:
-    tasks:
-      -
-
-  debrief:
-    carry_over_tasks:
-      -
-    comments: ""
+refactor: []
+features: []
+bugs: []
+documentation: []
+testing: []
