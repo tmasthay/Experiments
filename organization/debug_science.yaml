@@ -1,0 +1,71 @@
+description:
+  behavior:
+    expected:
+    actual:
+  performance:
+    expected:
+    actual:
+  comments:
+
+  mathematics:
+    conservation_laws_checked:
+    numerical_stability_verified:
+    precision_and_accuracy_assessed:
+
+unit_tests:
+  - [test_convergence, pass]
+  - [test_stability, pass]
+  - [test_bc, fail]
+
+code_review:
+  algorithmic_optimizations_checked:
+  computational_complexity_analyzed:
+  memory_access_patterns_optimized:
+  data_parallelism_utilized:
+  code_vectorization_checked:
+  floating_point_operations_verified:
+  redundancy_in_computations_identified:
+  mathematical_correctness_confirmed:
+  high_performance_libraries_used:
+
+memory_management:
+  heap_and_stack_usage_analyzed:
+  large_data_structures_optimized:
+  memory_leaks_identified_and_fixed:
+  cache_friendly_code_verified:
+
+parallel_computing:
+  thread_safety_measures_reviewed:
+  race_conditions_and_deadlocks_tested:
+  load_balancing_efficiency_checked:
+  communication_overhead_minimized:
+  gpu_utilization_maximized:
+  mpi_usage_efficiency_checked:
+
+performance_optimization:
+  hotspots_identified_via_profiling:
+  algorithmic_efficiency_improved:
+  io_operations_minimized:
+  memory_hierarchy_optimization:
+  jit_compilation_applied:
+
+mathematical_models:
+  model_validation_against_analytical_solutions:
+  sensitivity_analysis_performed:
+  discretization_errors_checked:
+  convergence_rates_computed:
+
+data_handling:
+  large_dataset_management_strategies:
+  io_efficiency_for_large_files_checked:
+  data_integrity_checks_implemented:
+
+environment_and_dependencies:
+  dependency_versions_locked_and_checked:
+  cross_platform_compatibility_verified:
+  containerization_for_reproducibility_checked:
+
+documentation_and_reproducibility:
+  code_documentation_complete:
+  computational_results_reproducible:
+  user_guide_and_tutorials_for_usage:

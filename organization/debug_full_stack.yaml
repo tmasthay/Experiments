@@ -1,0 +1,84 @@
+description:
+  behavior:
+    expected:
+    actual:
+  performance:
+    expected:
+    actual:
+  comments:
+
+unit_tests:
+  - [unit_test1, pass]
+  - [unit_test2, fail]
+
+code_review:
+  input_correctness_checked:
+  logic_flow_verified:
+  error_handling_coverage:
+  dependencies_listed_and_checked:
+  security_vulnerabilities_checked:
+  code_style_conformity:
+  third_party_code_reviewed:
+  redundant_code_identified:
+  documentation_matches_code_logic:
+
+indexing:
+  zero_based_confirmation:
+  data_structure_alignment:
+  off_by_one_errors_checked:
+
+data_shape:
+  dataset_tensor_shapes_verified_after_transforms:
+  input_output_data_shapes_consistent:
+
+dependency_check:
+  external_dependencies_versioned_and_checked:
+  deprecated_functions_identified:
+  cross_platform_dependency_verification:
+
+environment_consistency:
+  dev_prod_environment_similarity_verified:
+  containerization_consistency_checked:
+  cross_platform_behavior_tested:
+
+configuration_files:
+  accuracy_and_completeness_confirmed:
+  environment_variables_checked:
+  secure_credentials_storage_verified:
+
+memory_leaks:
+  profiling_tools_used_for_detection:
+  resource_allocation_and_release_verified:
+
+concurrency_issues:
+  race_conditions_and_deadlocks_tested:
+  asynchronous_code_execution_verified:
+  thread_safety_measures_reviewed:
+
+documentation_review:
+  accurately_reflects_current_codebase:
+  api_documentation_complete:
+  user_guide_and_tutorials_up_to_date:
+
+build_and_deployment:
+  build_process_errors_checked:
+  continuous_integration_passing:
+  deployment_scripts_reviewed:
+  rollback_procedures_verified:
+
+network_issues:
+  api_endpoint_availability_checked:
+  latency_issues_identified:
+  cross_origin_resource_sharing_configured:
+
+user_interface:
+  responsiveness_checked:
+  cross_browser_testing_completed:
+  accessibility_compliance_verified:
+  user_feedback_on_ui_consistency:
+
+performance_optimization:
+  critical_path_analysis_performed:
+  database_query_optimization_done:
+  caching_strategies_evaluated:
+  asset_minification_confirmed:

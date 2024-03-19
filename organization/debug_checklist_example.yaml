@@ -11,14 +11,12 @@ unit_tests:
   - [unit_test1, pass]
   - [unit_test2, fail]
 code_review:
-  usage_bugs: # bug(f), but f(g(x)) is observed with g wrong?
-    unit_test1_logic: y
-    unit_test2_logic: Maybe an indexing issue?
+  unit_test_logic_itself: INCORRECT/change unit test/code might be fine!
   dependencies:
-    torch.stack: y
-    parla.manager:
-      eviction: Ask developers but seems okay
-      subclassing: Possible issue here!
+    torch:
+      stack: Seems fine
+    parla:
+      task_manager: Possibly some weird edge cases
 indexing:
 data_shape:
 dependency_check:
