@@ -1,0 +1,6 @@
+audio:
+  file_path: "path/to/your/audiofile.mp3"
+  start: 3
+  end: 6
+  interval: 45
+  total_time: 300
