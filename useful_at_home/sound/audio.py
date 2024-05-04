@@ -16,7 +16,7 @@ def play_audio(cfg: DictConfig) -> None:
     
     # Segment to be played
     if type(cfg.end) == str and cfg.end.lower()[0] in ['a']:
-        start = 0
+        start = cfg.start * 1000
         end = len(audio)
     else:
         start = cfg.start * 1000
