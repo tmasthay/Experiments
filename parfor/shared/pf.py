@@ -9,9 +9,13 @@ def init_pool(shared_results):
 
 def process_chunk(args):
     start_idx, end_idx, iterator, callback, chunk_sizes = args
-    total_size = sum(chunk_sizes)  # Total size for a single full iteration across all arrays
+    total_size = sum(
+        chunk_sizes
+    )  # Total size for a single full iteration across all arrays
     for i in range(start_idx, end_idx):
-        result = callback(iterator[i], chunk_sizes)  # Returns a tuple of torch.Tensor
+        result = callback(
+            iterator[i], chunk_sizes
+        )  # Returns a tuple of torch.Tensor
         current_index = 0  # Start index for the current tuple of tensors
         for j, res in enumerate(result):
             tensor_size = chunk_sizes[j]
@@ -22,10 +26,11 @@ def process_chunk(args):
             numpy_data = res.numpy()
             # Check if numpy_data fits the intended range
             if len(numpy_data) != tensor_size:
-                raise ValueError("Mismatch in tensor size and designated segment size")
+                raise ValueError(
+                    "Mismatch in tensor size and designated segment size"
+                )
             shared_arrays[j][abs_start_idx:abs_end_idx] = numpy_data
             current_index += tensor_size  # Move the index for the next tensor
-
 
 
 class ParallelProcessor:
