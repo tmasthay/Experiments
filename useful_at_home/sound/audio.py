@@ -3,11 +3,13 @@ from omegaconf import DictConfig
 from pydub import AudioSegment
 from pydub.playback import play
 import time
+import os
 
 @hydra.main(config_path="cfg", config_name="cfg")
 def play_audio(cfg: DictConfig) -> None:
     # Load the audio file
-    audio = AudioSegment.from_file(cfg.audio.file_path)
+    file_path = os.path.join(os.path.dirname(__file__), cfg.audio.file_path)
+    audio = AudioSegment.from_file(os.path.abspath(file_path))
     
     # Calculate the total number of iterations to play
     max_iters = int(cfg.audio.total_time / cfg.audio.interval)

@@ -1,5 +1,5 @@
 audio:
-  file_path: "goggins.mp3"
+  file_path: "mp3_files/goggins.mp3"
   start: 3
   end: 6
   interval: 5
