@@ -4,7 +4,7 @@ from pydub import AudioSegment
 from pydub.playback import play
 import time
 
-@hydra.main(config_path="conf", config_name="config")
+@hydra.main(config_path="cfg", config_name="cfg")
 def play_audio(cfg: DictConfig) -> None:
     # Load the audio file
     audio = AudioSegment.from_file(cfg.audio.file_path)

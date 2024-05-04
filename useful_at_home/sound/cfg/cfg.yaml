@@ -1,6 +1,6 @@
 audio:
-  file_path: "path/to/your/audiofile.mp3"
+  file_path: "goggins.mp3"
   start: 3
   end: 6
-  interval: 45
+  interval: 5
   total_time: 300
