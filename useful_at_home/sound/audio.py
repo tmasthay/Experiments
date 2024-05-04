@@ -15,7 +15,7 @@ def play_audio(cfg: DictConfig) -> None:
     max_iters = int(cfg.total_time / cfg.interval)
     
     # Segment to be played
-    if type(cfg.end) == str and cfg.start.lower()[0] in ['a']:
+    if type(cfg.end) == str and cfg.end.lower()[0] in ['a']:
         start = 0
         end = len(audio)
     else:
