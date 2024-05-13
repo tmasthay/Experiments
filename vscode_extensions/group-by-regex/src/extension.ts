@@ -95,9 +95,10 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
         // Ensure there are enough editor groups open
-        while (vscode.window.tabGroups.all.length < patternMap.size + 1) {
-            await vscode.commands.executeCommand('workbench.action.newGroupRight');
-        }
+        // while (vscode.window.tabGroups.all.length < patternMap.size + 1) {
+        //     await vscode.commands.executeCommand('workbench.action.newGroupRight');
+        // }
+        // await ensureEditorLayout(patternMap.size + 1);
 
 		uniqueFileNames.forEach(async (fileName) => {
 			let placed = false;
