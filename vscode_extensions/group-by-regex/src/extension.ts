@@ -98,7 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
         // while (vscode.window.tabGroups.all.length < patternMap.size + 1) {
         //     await vscode.commands.executeCommand('workbench.action.newGroupRight');
         // }
-        // await ensureEditorLayout(patternMap.size + 1);
+        await ensureEditorLayout(patternMap.size + 1);
 
 		uniqueFileNames.forEach(async (fileName) => {
 			let placed = false;
@@ -134,4 +134,51 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {}
+
+async function ensureEditorLayout(numGroups: number) {
+    const layoutConfig = new Map<number, [number, number]>([
+        [1, [1, 1]],
+        [2, [1, 2]],
+        [3, [1, 3]],
+        [4, [2, 2]],
+        [5, [2, 3]],
+        [6, [3, 3]],
+        [7, [3, 4]]
+    ]);
+
+    const [rows, cols] = layoutConfig.get(numGroups) || [1, numGroups];
+
+    console.log(`Ensuring layout with ${rows} rows and ${cols} columns`)
+
+    // Close all editors to reset the layout
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+
+    // Initialize the first group explicitly if not already present
+    if (vscode.window.tabGroups.all.length === 0) {
+        await vscode.commands.executeCommand('workbench.action.newGroupRight');
+    }
+
+    // Create initial row of groups
+    for (let col = 1; col < cols; col++) { // Start from 1 because the first group is already created
+        await vscode.commands.executeCommand('workbench.action.newGroupRight');
+    }
+
+    // Start creating additional rows if necessary
+    for (let row = 2; row <= rows; row++) {
+        console.log(`Creating row ${row}`);
+        for(let col = 1; col < cols; col++){
+            // Get us back to the first group of the row
+            await vscode.commands.executeCommand('workbench.action.focusLeftGroup');
+        }
+        await vscode.commands.executeCommand('workbench.action.newGroupBelow');
+
+        // Create remaining groups in the current row
+        for (let col = 1; col < cols; col++) {
+            console.log(`Creating group ${col + 1} in row ${row}`);
+            await vscode.commands.executeCommand('workbench.action.focusRightGroup');
+            await vscode.commands.executeCommand('workbench.action.newGroupBelow');
+        }
+    }
+}
+
 
