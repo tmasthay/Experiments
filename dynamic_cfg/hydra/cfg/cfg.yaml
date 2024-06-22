@@ -1,1 +1,36 @@
-self_transform: ^^null|
+self_read:
+  mods:
+    path: mods
+    tdd:
+      load: ^^cwd/submods/config|transform_dot_dict|
+      rt: self.${..path}.tdd.load
+  runtime_func: ${.mods.tdd.rt}.PickleUnaryFunction
+  kw:
+    callback: ${..mods.tdd.rt}.my_convert
+    no_self_ref:
+    - rt
+    no_apply:
+    - rt
+
+rt:
+  t:
+    runtime_func: ^^null|torch|linspace
+    kw:
+      start: 0
+      end: 1
+      steps: 100
+  params: '@rt'
+
+  optimizer:
+    runtime_func: ^^|torch.optim|Adam
+    kw:
+      params: self.rt.params
+      lr: 0.01
+
+other_key:
+  t:
+    runtime_func: ^^|torch|linspace
+    kw:
+      start: 0
+      end: 1
+      steps: 100
