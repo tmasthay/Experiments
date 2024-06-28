@@ -1,0 +1,6 @@
+defaults:
+- _self_
+- subpath: default
+
+subpath:
+  some_other_key: some_other_value
