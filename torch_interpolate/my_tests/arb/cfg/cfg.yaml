@@ -1,0 +1,17 @@
+points:
+  start: -10
+  end: 10
+  num: 1000
+
+function:
+  freq: 0.75
+  variable_name: x
+  formula: |
+    torch.sin(torch.exp(${.freq} * ${.variable_name}))
+  derivative: |
+    torch.cos(torch.exp(${.freq} * ${.variable_name})) \
+    * torch.exp(${.freq} * ${.variable_name}) \
+    * ${.freq}
+
+output:
+  format: jpg
