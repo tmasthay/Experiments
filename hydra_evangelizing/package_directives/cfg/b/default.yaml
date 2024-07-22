@@ -1,0 +1,1 @@
+b_local_var_that_mimics_directory_structure: ${..a.a_some_gbl_var}

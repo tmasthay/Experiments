@@ -1,0 +1,6 @@
+# @package _global_
+
+a_some_gbl_var: 1
+
+a:
+  a_some_local_var_that_mimics_directory_structure: 2
