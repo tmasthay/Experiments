@@ -1,0 +1,3 @@
+takeaway_message: |
+  'e' in root.keys() and not 'd' in root.keys() because 'd' was 
+  essentially just a dummy due to the global package directive
