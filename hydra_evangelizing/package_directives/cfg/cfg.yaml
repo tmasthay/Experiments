@@ -1,0 +1,6 @@
+defaults:
+- _self_
+- a: default
+- b: default
+- c: default
+- d: default

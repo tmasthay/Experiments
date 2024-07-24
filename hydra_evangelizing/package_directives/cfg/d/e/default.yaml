@@ -1,0 +1,13 @@
+takeaway_message: |
+  'e' in root.keys() and not 'd' in root.keys() because 'd' was 
+  essentially just a dummy due to the global package directive
+  The main application here is something like
+  porosity.yaml
+  defaults:
+  - _self_
+  - data: default
+  - plot_callbacks: default
+
+  data/default.yaml has @package porosity scope so that you can keep a flat
+  structure but have nice configurability at every level without a giant 
+  yaml file
