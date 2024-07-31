@@ -1,0 +1,5 @@
+defaults:
+- _self_
+- some_hidden_key_thats_only_file_placeholder: default
+
+a: 1
