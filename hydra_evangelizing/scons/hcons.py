@@ -1,15 +1,13 @@
-import sys
+import hydra
+from omegaconf import DictConfig, OmegaConf
+import os
 import yaml
-import json
 
-
-def yaml_to_json(input_file, output_file):
-    with open(input_file, 'r') as f:
-        data = yaml.safe_load(f)
-
-    with open(output_file, 'w') as f:
-        json.dump(data, f, indent=4)
+@hydra.main(config_path="cfg", config_name="cfg", version_base=None)
+def main(cfg: DictConfig):
+    c = OmegaConf.to_container(cfg, resolve=True)
+    yaml.dump(c, open('input.yaml', 'w'))
 
 
 if __name__ == "__main__":
-    yaml_to_json(sys.argv[1], sys.argv[2])
+    main()

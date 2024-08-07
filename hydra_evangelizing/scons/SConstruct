@@ -1,17 +1,10 @@
 import os
-from SCons.Script import Builder, Environment
+import sys
+from rsf.proj import *
+import yaml
+from dotmap import DotMap
 
-# Function to build json from yaml
-def build_json_from_yaml(target, source, env):
-    # target[0].get_path() will give the target file path
-    # source[0].get_path() will give the source file path
-    os.system(f"python hcons.py {source[0].get_path()} {target[0].get_path()}")
+C = DotMap(yaml.load(open('input.yaml'), Loader=yaml.FullLoader))
 
-# Define the builder
-yaml_to_json_builder = Builder(action=build_json_from_yaml)
+Flow('out', None, f'spike n1={C.spike.n1} n2={C.spike.n2}')
 
-# Add the builder to the environment
-env = Environment(BUILDERS={'YamlToJson': yaml_to_json_builder})
-
-# Use the builder to convert input.yaml to output.json
-env.YamlToJson(target='output.json', source='input.yaml')
