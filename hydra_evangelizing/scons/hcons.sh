@@ -16,8 +16,11 @@ hcons ()
         scons -c;
     else
         python3 hcons.py "$@";
-        if [ $HELP -eq 0 ]; then
+        if [ $HELP -eq 0 && $? -eq 0 ]; then
             scons;
-        fi;
+        elif [ $HELP -eq 0 ]; then
+            echo "Invalid hydra config...skipping scons";
+            return 1
+        fi
     fi
 }
