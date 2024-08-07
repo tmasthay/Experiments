@@ -1,0 +1,15 @@
+defaults:
+- _self_
+- vel: default
+
+name: Reproduce hw2 groundroll
+
+segy_lines: 
+- L23535
+- L23536
+- L23537
+
+shots:
+  view: 0
+
+
