@@ -1,0 +1,28 @@
+import sys
+from hydra import initialize, compose
+from omegaconf import OmegaConf
+from dotmap import DotMap
+from rsf.proj import *
+
+def create_hydra_config(config_name, config_path, version_base, cmd_line_args):
+    with initialize(config_path=config_path, version_base=version_base):
+        c = compose(config_name=config_name, overrides=cmd_line_args)
+
+    # c = DotMap(OmegaConf.to_container(config, resolve=True), _dynamic=False)
+    return c
+
+def vars(d):
+    return ' '.join([f"{k}={v}" for k, v in d.items()])
+
+scons_only_args = ['-c', '-n', '-h', '--help']
+hydra_cmd_line_args = [arg for arg in sys.argv[1:] if arg not in scons_only_args]
+# scons_args = SCons.Script.ARGUMENTS
+c = create_hydra_config(
+    config_name="cfg",
+    config_path="cfg",
+    version_base=None,
+    cmd_line_args=hydra_cmd_line_args
+)
+if c.get("verbose", False):
+    print(OmegaConf.to_yaml(c), flush=True)
+Flow('out', None, f'spike {vars(c.spike)}')
