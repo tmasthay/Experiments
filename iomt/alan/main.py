@@ -50,29 +50,48 @@ class SourceAmplitudes(torch.nn.Module):
 device = 'cuda:0'
 # Size of velocity model
 ny, nx = 120, 130
-
-# Put one source in each velocity model cell
-source_locations_all = torch.stack(
-    torch.meshgrid((torch.arange(ny), torch.arange(nx)), indexing='ij'), dim=-1
-)
-
 n_shots = 1
 
-nt = 300
+# Put one source in each velocity model cell
+source_locations_all = (
+    torch.stack(
+        torch.meshgrid((torch.arange(ny), torch.arange(nx)), indexing='ij'),
+        dim=-1,
+    )
+    .repeat(n_shots, 1, 1)
+    .int()
+    .to(device)
+)
+
+# observe densely at specified depth 2
+
+rec_loc = (
+    torch.cartesian_prod(torch.tensor([2]), torch.arange(ny))
+    .repeat(n_shots, 1, 1)
+    .int()
+    .to(device)
+)
+print(f'{rec_loc.shape=}')
+
+
+nt = 500
 dt = 0.0004
 freq = 25.0
 peak_time = 1.5 / freq
+dy, dx = 4.0, 4.0
+v = torch.ones(ny, nx).to(device) * 1500.0
+beta = [4.0, 4.0]
+halfwidth = [70, 70]
+
 t = torch.linspace(0, nt * dt, nt, device=device)
 source_amplitudes_true = (
     dw.wavelets.ricker(freq, nt, dt, peak_time).repeat(n_shots, 1).to(device)
 )
-beta = [4.0, 4.0]
-halfwidth = [70, 70]
 source_amplitudes = SourceAmplitudes(
     ny=ny,
     nx=nx,
-    init_loc0=20.0,
-    init_loc1=50.0,
+    init_loc0=10.0,
+    init_loc1=60.6753435,
     source_trace=source_amplitudes_true,
     beta=beta[0],
     halfwidth=halfwidth[0],
@@ -87,40 +106,67 @@ source_amplitudes = SourceAmplitudes(
 #     halfwidth=halfwidth[1],
 # )
 
-opts = dict(
-    cmap='seismic',
-    aspect='auto',
-    vmin=source_amplitudes_true.min(),
-    vmax=source_amplitudes_true.max(),
-)
+# opts = dict(
+#     cmap='seismic',
+#     aspect='auto',
+#     vmin=source_amplitudes_true.min(),
+#     vmax=source_amplitudes_true.max(),
+# )
 
 
-def plotter_amps(
-    *,
-    data: torch.Tensor,
-    idx: Tuple[slice, ...],
-    fig: Figure,
-    axes: Axes,
-):
-    plt.clf()
-    plt.imshow(data[idx], **opts)
-    plt.title(clean_idx(idx))
-    plt.colorbar()
-    plt.savefig(f'{idx[-1]}.jpg')
+# def plotter_amps(
+#     *, data: torch.Tensor, idx: Tuple[slice, ...], fig: Figure, axes: Axes
+# ):
+#     plt.clf()
+#     plt.imshow(data[idx], **opts)
+#     plt.title(clean_idx(idx))
+#     plt.colorbar()
+#     plt.savefig(f'{idx[-1]}.jpg')
 
 
 # tmp = source_amplitudes() + other_sources()
-tmp = source_amplitudes()
-loop_amps = tmp.squeeze().reshape(ny, nx, -1)
-iter = bool_slice(*loop_amps.shape, none_dims=[0, 1], strides=[1, 1, 5])
+flat_amps = source_amplitudes()
+# loop_amps = flat_amps.squeeze().reshape(ny, nx, -1)
+# iter = bool_slice(*loop_amps.shape, none_dims=[0, 1], strides=[1, 1, 5])
 
-fig, axes = plt.subplots(1, 1)
-frames = get_frames_bool(
-    data=loop_amps.detach().cpu(),
-    iter=iter,
-    plotter=plotter_amps,
-    fig=fig,
-    axes=axes,
+# fig, axes = plt.subplots(1, 1)
+# frames = get_frames_bool(
+#     data=loop_amps.detach().cpu(),
+#     iter=iter,
+#     plotter=plotter_amps,
+#     fig=fig,
+#     axes=axes,
+# )
+# print(f'{len(frames)} frames')
+# save_frames(frames, path='source_amplitudes.gif', verify_frame_count=True)
+
+
+pml_width = 20
+u = dw.scalar(
+    v,
+    [dy, dx],
+    dt=dt,
+    source_amplitudes=flat_amps,
+    source_locations=source_locations_all.view(n_shots, -1, 2),
+    receiver_locations=rec_loc,
+    pml_width=pml_width
 )
-print(f'{len(frames)} frames')
-save_frames(frames, path='source_amplitudes.gif', verify_frame_count=True)
+
+opts = dict(cmap='seismic', aspect='auto')
+full_wavefield=u[0].detach().cpu().squeeze()
+physical_wavefield=full_wavefield[pml_width:-pml_width,pml_width:-pml_width]
+
+plt.imshow(physical_wavefield, **opts)
+plt.title('Final Wavefield')
+plt.ylabel('Depth')
+plt.xlabel('Offset')
+plt.colorbar()
+plt.savefig('final_wavefield.jpg')
+plt.clf()
+
+plt.imshow(u[-1].T.detach().cpu().squeeze(), **opts)
+plt.title('Observed Data')
+plt.ylabel('Time (s)')
+plt.xlabel('Offset Index')
+plt.savefig('obs_data.jpg')
+
