@@ -82,12 +82,14 @@ freq = 25.0
 peak_time = 1.5 / freq
 dy, dx = 4.0, 4.0
 v = torch.ones(ny, nx).to(device) * 1500.0
-v[ny//2, :] = 3000.0
-v[:, 3 * nx // 4] = 4500.0
-v[3 * ny // 4, :] = 2000.0
-v[:, 3 * ny // 4] = 4000.0
 v = v[:ny, :nx]
-beta = [4.0, 4.0]
+nonhomo = False
+if nonhomo:
+    v[ny // 2, :] = 3000.0
+    v[:, 3 * nx // 4] = 4500.0
+    v[3 * ny // 4, :] = 2000.0
+    v[:, 3 * ny // 4] = 4000.0
+    beta = [4.0, 4.0]
 halfwidth = [70, 70]
 
 t = torch.linspace(0, nt * dt, nt, device=device)
