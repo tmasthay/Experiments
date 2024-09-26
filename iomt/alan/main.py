@@ -58,7 +58,7 @@ source_locations_all = torch.stack(
 
 n_shots = 1
 
-nt = 1000
+nt = 300
 dt = 0.0004
 freq = 25.0
 peak_time = 1.5 / freq
@@ -71,20 +71,27 @@ halfwidth = [70, 70]
 source_amplitudes = SourceAmplitudes(
     ny=ny,
     nx=nx,
-    init_loc0=1.0,
-    init_loc1=4.0,
+    init_loc0=20.0,
+    init_loc1=50.0,
     source_trace=source_amplitudes_true,
     beta=beta[0],
     halfwidth=halfwidth[0],
 )
-other_sources = SourceAmplitudes(
-    ny=ny,
-    nx=nx,
-    init_loc0=20.5,
-    init_loc1=50.4,
-    source_trace=source_amplitudes_true,
-    beta=beta[1],
-    halfwidth=halfwidth[1],
+# other_sources = SourceAmplitudes(
+#     ny=ny,
+#     nx=nx,
+#     init_loc0=20.5,
+#     init_loc1=50.4,
+#     source_trace=source_amplitudes_true,
+#     beta=beta[1],
+#     halfwidth=halfwidth[1],
+# )
+
+opts = dict(
+    cmap='seismic',
+    aspect='auto',
+    vmin=source_amplitudes_true.min(),
+    vmax=source_amplitudes_true.max(),
 )
 
 
@@ -94,28 +101,26 @@ def plotter_amps(
     idx: Tuple[slice, ...],
     fig: Figure,
     axes: Axes,
-    opts: dict,
 ):
-    print(clean_idx(idx))
     plt.clf()
     plt.imshow(data[idx], **opts)
+    plt.title(clean_idx(idx))
     plt.colorbar()
+    plt.savefig(f'{idx[-1]}.jpg')
 
 
 # tmp = source_amplitudes() + other_sources()
-tmp = other_sources() + source_amplitudes()
+tmp = source_amplitudes()
 loop_amps = tmp.squeeze().reshape(ny, nx, -1)
-torch.save(loop_amps, 'loop_amps.pt')
-# input(loop_amps.shape)
-iter = bool_slice(*loop_amps.shape, none_dims=[0, 1], strides=[1, 1, nt // 10])
-opts = dict(
-    cmap='seismic',
-    aspect='auto',
-    vmin=source_amplitudes_true.min(),
-    vmax=source_amplitudes_true.max(),
-)
+iter = bool_slice(*loop_amps.shape, none_dims=[0, 1], strides=[1, 1, 5])
+
+fig, axes = plt.subplots(1, 1)
 frames = get_frames_bool(
-    data=loop_amps.detach().cpu(), iter=iter, plotter=plotter_amps, opts=opts
+    data=loop_amps.detach().cpu(),
+    iter=iter,
+    plotter=plotter_amps,
+    fig=fig,
+    axes=axes,
 )
-# input(len(frames))
-save_frames(frames, path='source_amplitudes.gif')
+print(f'{len(frames)} frames')
+save_frames(frames, path='source_amplitudes.gif', verify_frame_count=True)
