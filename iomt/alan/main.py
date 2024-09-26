@@ -65,21 +65,28 @@ source_locations_all = (
 
 # observe densely at specified depth 2
 
-rec_loc = (
-    torch.cartesian_prod(torch.tensor([2]), torch.arange(ny))
-    .repeat(n_shots, 1, 1)
-    .int()
-    .to(device)
-)
+# rec_loc = (
+#     torch.cartesian_prod(torch.tensor([2]), torch.arange(ny))
+#     .repeat(n_shots, 1, 1)
+#     .int()
+#     .to(device)
+# )
+rec_loc = source_locations_all.detach().clone()
+rec_loc = rec_loc.view(n_shots, -1, 2)
 print(f'{rec_loc.shape=}')
 
 
-nt = 500
+nt = 1000
 dt = 0.0004
 freq = 25.0
 peak_time = 1.5 / freq
 dy, dx = 4.0, 4.0
 v = torch.ones(ny, nx).to(device) * 1500.0
+v[ny//2, :] = 3000.0
+v[:, 3 * nx // 4] = 4500.0
+v[3 * ny // 4, :] = 2000.0
+v[:, 3 * ny // 4] = 4000.0
+v = v[:ny, :nx]
 beta = [4.0, 4.0]
 halfwidth = [70, 70]
 
@@ -90,7 +97,7 @@ source_amplitudes_true = (
 source_amplitudes = SourceAmplitudes(
     ny=ny,
     nx=nx,
-    init_loc0=10.0,
+    init_loc0=100.5,
     init_loc1=60.6753435,
     source_trace=source_amplitudes_true,
     beta=beta[0],
@@ -149,24 +156,42 @@ u = dw.scalar(
     source_amplitudes=flat_amps,
     source_locations=source_locations_all.view(n_shots, -1, 2),
     receiver_locations=rec_loc,
-    pml_width=pml_width
+    pml_width=pml_width,
 )
 
-opts = dict(cmap='seismic', aspect='auto')
-full_wavefield=u[0].detach().cpu().squeeze()
-physical_wavefield=full_wavefield[pml_width:-pml_width,pml_width:-pml_width]
+# full_wavefield=u[0].detach().cpu().squeeze()
+# physical_wavefield=full_wavefield[pml_width:-pml_width,pml_width:-pml_width]
 
-plt.imshow(physical_wavefield, **opts)
-plt.title('Final Wavefield')
-plt.ylabel('Depth')
-plt.xlabel('Offset')
-plt.colorbar()
-plt.savefig('final_wavefield.jpg')
-plt.clf()
+# plt.imshow(physical_wavefield, **opts)
+# plt.title('Final Wavefield')
+# plt.ylabel('Depth')
+# plt.xlabel('Offset')
+# plt.colorbar()
+# plt.savefig('final_wavefield.jpg')
+# plt.clf()
 
-plt.imshow(u[-1].T.detach().cpu().squeeze(), **opts)
-plt.title('Observed Data')
-plt.ylabel('Time (s)')
-plt.xlabel('Offset Index')
-plt.savefig('obs_data.jpg')
+# plt.imshow(u[-1].T.detach().cpu().squeeze(), **opts)
+# plt.title('Observed Data')
+# plt.ylabel('Time (s)')
+# plt.xlabel('Offset Index')
+# plt.savefig('obs_data.jpg')
 
+obs_data = u[-1].detach().cpu().squeeze().view(ny, nx, -1)
+opts = dict(
+    cmap='seismic', aspect='auto', vmin=obs_data.min(), vmax=obs_data.max()
+)
+
+
+def plotter(*, data, idx, fig, axes):
+    plt.clf()
+    plt.imshow(data[idx], **opts)
+    plt.imshow(v.detach().cpu(), cmap='nipy_spectral', alpha=0.3, aspect='auto')
+    plt.colorbar()
+    plt.ylabel('Depth')
+    plt.xlabel('Offset')
+    plt.title(clean_idx(idx))
+
+
+iter = bool_slice(*obs_data.shape, none_dims=[0, 1], strides=[1, 1, 5])
+frames = get_frames_bool(data=obs_data, iter=iter, plotter=plotter)
+save_frames(frames, path='obs_data.gif')
