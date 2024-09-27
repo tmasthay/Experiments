@@ -8,6 +8,11 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from misfit_toys.fwi.seismic_data import ParamConstrained, Param
+import hydra
+from omegaconf import OmegaConf, DictConfig
+from dotmap import DotMap
+from mh.core import hydra_out, DotDict
+from misfit_toys.swiffer import dupe
 
 
 def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
@@ -57,9 +62,11 @@ class SourceAmplitudes(torch.nn.Module):
 
     def _get_weight(self, loc, n):
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
+        # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
+        bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2)
         bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
-        bessel_term[x.abs() > self.halfwidth] = 0.0
+        # input(bessel_term.max())
+        # bessel_term[x.abs() > self.halfwidth] = 0.0
         return bessel_term * torch.sinc(x)
 
     def forward(self):
@@ -70,125 +77,128 @@ class SourceAmplitudes(torch.nn.Module):
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
 
+def preprocess_cfg(cfg: DictConfig) -> DotDict:
+    c = OmegaConf.to_container(cfg, resolve=True)
+    c = DotDict(c)
+    c.peak_time = c.peak_time_factor / c.freq
+    c.dtype = torch.float32
+    return c
 
-device = 'cuda:0'
-# Size of velocity model
-ny, nx = 120, 130
-n_shots = 1
+@hydra.main(config_path='cfg', config_name='cfg', version_base=None)
+def main(cfg: DictConfig):
+    c = preprocess_cfg(cfg)
+    
+    if c.get('dupe', True):
+        dupe(hydra_out('stream'), verbose=True, editor=c.get('editor', None))
 
-# Put one source in each velocity model cell
-source_locations_all = (
-    torch.stack(
-        torch.meshgrid((torch.arange(ny), torch.arange(nx)), indexing='ij'),
-        dim=-1,
+    # Put one source in each velocity model cell
+    source_locations_all = (
+        torch.stack(
+            torch.meshgrid((torch.arange(c.ny), torch.arange(c.nx)), indexing='ij'),
+            dim=-1,
+        )
+        .repeat(c.n_shots, 1, 1)
+        .int()
+        .to(c.device)
     )
-    .repeat(n_shots, 1, 1)
-    .int()
-    .to(device)
-)
 
-rec_loc = source_locations_all.detach().clone()
-rec_loc = rec_loc.view(n_shots, -1, 2)
-print(f'{rec_loc.shape=}')
+    rec_loc = source_locations_all.detach().clone()
+    # rec_loc = source_locations_all[:, :c.ny, :].detach().clone()
+    rec_loc = rec_loc.view(c.n_shots, -1, 2)
+    # print(f'{rec_loc.shape=}')
 
 
-nt = 1000
-dt = 0.0004
-freq = 25.0
-peak_time = 1.5 / freq
-dy, dx = 4.0, 4.0
-v = torch.ones(ny, nx).to(device) * 1500.0
-v = v[:ny, :nx]
-nonhomo = False
-if nonhomo:
-    v[ny // 2, :] = 3000.0
-    v[:, 3 * nx // 4] = 4500.0
-    v[3 * ny // 4, :] = 2000.0
-    v[:, 3 * ny // 4] = 4000.0
-    beta = [4.0, 4.0]
-halfwidth = [70, 70]
-beta = [4.0, 4.0]
+    v = torch.ones(c.ny, c.nx).to(c.device) * c.vel
+    v = v[:c.ny, :c.nx]
 
-t = torch.linspace(0, nt * dt, nt, device=device)
-source_amplitudes_true = (
-    dw.wavelets.ricker(freq, nt, dt, peak_time).repeat(n_shots, 1).to(device)
-)
-source_amplitudes = SourceAmplitudes(
-    ny=ny,
-    nx=nx,
-    # init_loc0=100.5,
-    # init_loc1=60.6753435,
-    init_loc0=60.0,
-    init_loc1=64.9,
-    source_trace=source_amplitudes_true,
-    beta=beta[0],
-    halfwidth=halfwidth[0],
-)
-
-ref_amplitudes = SourceAmplitudes(
-    ny=ny,
-    nx=nx,
-    init_loc0=60.0,
-    init_loc1=65.0,
-    source_trace=source_amplitudes_true,
-    beta=beta[0],
-    halfwidth=halfwidth[0],
-    trainable=False,
-)
-
-final_src_loc = source_locations_all.view(n_shots, -1, 2)
-pml_width = 20
-
-
-def forward(*, amps, msg=''):
-    # check_nans(amps, name='amps', msg=msg)
-    u = dw.scalar(
-        v,
-        [dy, dx],
-        dt=dt,
-        source_amplitudes=amps,
-        source_locations=final_src_loc,
-        receiver_locations=rec_loc,
-        pml_width=pml_width,
-    )[-1]
-
-    # throw error if any NaNs are detected
-    # check_nans(u, name='output', msg=msg)
-
-    return u
-
-
-obs_data_true = forward(amps=ref_amplitudes(), msg='True')
-
-n_epochs = 100
-optimizer = torch.optim.SGD(source_amplitudes.parameters(), lr=0.01)
-loss = torch.nn.MSELoss()
-
-num_frames = 10
-save_freq = max(1, n_epochs // num_frames)
-# param_history = [source_amplitudes().detach().clone()
-param_history = []
-# loss_history = [
-#     loss(
-#         obs_data_true, forward(amps=source_amplitudes(), msg='Initial').detach()
-#     )
-# ]
-loss_history = []
-grad_norm_history = []
-for epoch in range(n_epochs):
-    # print(f'loc: [{source_amplitudes.loc0.item()}, {source_amplitudes.loc1.item()}]')
-    loc = source_amplitudes.loc()
-    # print(f'{loc=}')
-    optimizer.zero_grad()
-    obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
-    loss_val = loss(obs_data, obs_data_true)
-    loss_val.backward()
-    if epoch % save_freq == 0:
-        param_history.append(source_amplitudes())
-        loss_history.append(loss_val)
-
-    optimizer.step()
-    input(
-        f'Epoch {epoch}, Loss: {loss_val.item()}, neg_loc_grad:'
-        f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
+    t = torch.linspace(0, c.nt * c.dt, c.nt, device=c.device)
+    source_amplitudes_true = (
+        dw.wavelets.ricker(c.freq, c.nt, c.dt, c.peak_time).repeat(c.n_shots, 1).to(c.device)
     )
+    source_amplitudes: SourceAmplitudes = SourceAmplitudes(
+        ny=c.ny,
+        nx=c.nx,
+        init_loc0=c.init_loc[0] * c.ny,
+        init_loc1=c.init_loc[1] * c.nx,
+        source_trace=source_amplitudes_true,
+        beta=c.beta[0],
+        halfwidth=c.halfwidth[0],
+    )
+
+    ref_amplitudes = SourceAmplitudes(
+        ny=c.ny,
+        nx=c.nx,
+        init_loc0=c.ref_loc[0] * c.ny,
+        init_loc1=c.ref_loc[1] * c.nx,
+        source_trace=source_amplitudes_true,
+        beta=c.beta[0],
+        halfwidth=c.halfwidth[0],
+        trainable=False,
+    )
+
+    final_src_loc = source_locations_all.view(c.n_shots, -1, 2)
+
+
+    def forward(*, amps, msg=''):
+        # check_nans(amps, name='amps', msg=msg)
+        u = dw.scalar(
+            v,
+            [c.dy, c.dx],
+            dt=c.dt,
+            source_amplitudes=amps,
+            source_locations=final_src_loc,
+            receiver_locations=rec_loc,
+            pml_width=c.pml_width,
+        )[-1]
+
+        # throw error if a               NaNs are detected
+        # check_nans(u, name='output', msg=msg)
+
+        return u
+
+
+    obs_data_true = forward(amps=ref_amplitudes(), msg='True')
+    
+    optimizer = torch.optim.SGD(source_amplitudes.parameters(), lr=c.lr)
+    loss = torch.nn.MSELoss()
+
+    num_frames = 10
+    save_freq = max(1, c.n_epochs // num_frames)
+    # param_history = [source_amplitudes().detach().clone()
+    param_history = []
+    # loss_history = [
+    #     loss(
+    #         obs_data_true, forward(amps=source_amplitudes(), msg='Initial').detach()
+    #     )
+    # ]
+    loss_history = []
+    grad_norm_history = []
+    for epoch in range(c.n_epochs):
+        # print(f'loc: [{source_amplitudes.loc0.item()}, {source_amplitudes.loc1.item()}]')
+        loc = source_amplitudes.loc()
+        # print(f'{loc=}')
+        optimizer.zero_grad()
+        obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
+        loss_val = loss(obs_data, obs_data_true)
+        loss_val.backward()
+        if epoch % save_freq == 0:
+            param_history.append(source_amplitudes())
+            loss_history.append(loss_val)
+
+        optimizer.step()
+        print(
+            f'Epoch {epoch}, Loss: {loss_val.item()}, neg_loc_grad:'
+            f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
+            f' loc: {list(source_amplitudes.loc().detach().cpu().numpy())}'
+        )
+        
+    with open('.latest', 'w') as f:
+        f.write(f'cd {hydra_out()}')
+        
+    print('To see the results of this run, run\n    . .latest')
+
+
+if __name__ == "__main__":
+    main()
+
+
