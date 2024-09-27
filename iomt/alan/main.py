@@ -25,7 +25,6 @@ def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
             f' "{name}"\n{msg}\n{n_nans}/{u.numel()} ({percent_nans:.2f}%)'
         )
 
-
 class SourceAmplitudes(torch.nn.Module):
     def __init__(
         self,
@@ -64,6 +63,7 @@ class SourceAmplitudes(torch.nn.Module):
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
         # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
         bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2)
+        bessel_arg = bessel_arg.nan_to_num(nan=0.0)
         bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
         # input(bessel_term.max())
         # bessel_term[x.abs() > self.halfwidth] = 0.0
@@ -77,6 +77,7 @@ class SourceAmplitudes(torch.nn.Module):
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
 
+
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
     c = OmegaConf.to_container(cfg, resolve=True)
     c = DotDict(c)
@@ -84,17 +85,20 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     c.dtype = torch.float32
     return c
 
+
 @hydra.main(config_path='cfg', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-    
+
     if c.get('dupe', True):
         dupe(hydra_out('stream'), verbose=True, editor=c.get('editor', None))
 
     # Put one source in each velocity model cell
     source_locations_all = (
         torch.stack(
-            torch.meshgrid((torch.arange(c.ny), torch.arange(c.nx)), indexing='ij'),
+            torch.meshgrid(
+                (torch.arange(c.ny), torch.arange(c.nx)), indexing='ij'
+            ),
             dim=-1,
         )
         .repeat(c.n_shots, 1, 1)
@@ -107,13 +111,14 @@ def main(cfg: DictConfig):
     rec_loc = rec_loc.view(c.n_shots, -1, 2)
     # print(f'{rec_loc.shape=}')
 
-
     v = torch.ones(c.ny, c.nx).to(c.device) * c.vel
-    v = v[:c.ny, :c.nx]
+    v = v[: c.ny, : c.nx]
 
     t = torch.linspace(0, c.nt * c.dt, c.nt, device=c.device)
     source_amplitudes_true = (
-        dw.wavelets.ricker(c.freq, c.nt, c.dt, c.peak_time).repeat(c.n_shots, 1).to(c.device)
+        dw.wavelets.ricker(c.freq, c.nt, c.dt, c.peak_time)
+        .repeat(c.n_shots, 1)
+        .to(c.device)
     )
     source_amplitudes: SourceAmplitudes = SourceAmplitudes(
         ny=c.ny,
@@ -138,9 +143,8 @@ def main(cfg: DictConfig):
 
     final_src_loc = source_locations_all.view(c.n_shots, -1, 2)
 
-
     def forward(*, amps, msg=''):
-        # check_nans(amps, name='amps', msg=msg)
+        check_nans(amps, name='amps', msg=msg)
         u = dw.scalar(
             v,
             [c.dy, c.dx],
@@ -152,14 +156,14 @@ def main(cfg: DictConfig):
         )[-1]
 
         # throw error if a               NaNs are detected
-        # check_nans(u, name='output', msg=msg)
+        check_nans(u, name='output', msg=msg)
 
         return u
 
-
     obs_data_true = forward(amps=ref_amplitudes(), msg='True')
-    
-    optimizer = torch.optim.SGD(source_amplitudes.parameters(), lr=c.lr)
+
+    optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
+    # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
     loss = torch.nn.MSELoss()
 
     num_frames = 10
@@ -174,31 +178,38 @@ def main(cfg: DictConfig):
     loss_history = []
     grad_norm_history = []
     for epoch in range(c.n_epochs):
-        # print(f'loc: [{source_amplitudes.loc0.item()}, {source_amplitudes.loc1.item()}]')
-        loc = source_amplitudes.loc()
-        # print(f'{loc=}')
-        optimizer.zero_grad()
-        obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
-        loss_val = loss(obs_data, obs_data_true)
-        loss_val.backward()
-        if epoch % save_freq == 0:
-            param_history.append(source_amplitudes())
-            loss_history.append(loss_val)
+        num_calls = 0
 
-        optimizer.step()
+        def closure():
+            nonlocal num_calls
+            num_calls += 1
+            optimizer.zero_grad()
+            obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
+            loss_val = loss(obs_data, obs_data_true)
+            loss_val.backward()
+            if num_calls == 1 and epoch % save_freq == 0:
+                param_history.append(source_amplitudes())
+                loss_history.append(loss_val)
+            return loss_val
+
+        loss_val = optimizer.step(closure)
+        true_error = torch.norm(
+            source_amplitudes.loc().detach() - ref_amplitudes.loc().detach()
+        )
+        final_loss = loss_val if isinstance(loss_val, float) else loss_val.item()
         print(
-            f'Epoch {epoch}, Loss: {loss_val.item()}, neg_loc_grad:'
+            f'Epoch {epoch}, Loss: {final_loss}, neg_loc_grad:'
             f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
             f' loc: {list(source_amplitudes.loc().detach().cpu().numpy())}'
+            f' true_error: {true_error}',
+            flush=True,
         )
-        
+
     with open('.latest', 'w') as f:
         f.write(f'cd {hydra_out()}')
-        
+
     print('To see the results of this run, run\n    . .latest')
 
 
 if __name__ == "__main__":
     main()
-
-
