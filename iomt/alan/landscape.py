@@ -14,6 +14,7 @@ from omegaconf import OmegaConf, DictConfig
 from dotmap import DotMap
 from mh.core import hydra_out, DotDict, set_print_options, torch_stats
 from misfit_toys.swiffer import dupe
+from time import time
 
 set_print_options(callback=torch_stats('all'))
 
@@ -103,35 +104,36 @@ def main(cfg: DictConfig):
 
     # print(c.pretty_str())
 
-    # mid_idx = metadata.n_shots // 2
+    mid_idx = metadata.n_shots // 2
     # mid_idx = slice(None)
     # vp = c.vel * torch.ones_like(torch.load(get_path('vp_init'))).to(c.device)
-    # src_amp_y = (
-    #     torch.load(get_path('src_amp_y'))[mid_idx]
-    #     .view(c.n_shots, 1, -1)
-    #     .to(c.device)
-    # )
-    # src_loc = (
-    #     torch.load(get_path('src_loc_y'))[mid_idx]
-    #     .repeat(c.n_shots, 1, 1)
-    #     .to(c.device)
-    # )
-    # obs_data: torch.Tensor = (
-    #     torch.load(get_path('obs_data'))[mid_idx]
-    #     .view(c.n_shots, -1, c.nt)
-    #     .to(c.device)
-    # )
-    # rec_loc = (
-    #     torch.load(get_path('rec_loc_y'))[mid_idx]
-    #     .view(c.n_shots, -1, 2)
-    #     .long()
-    #     .to(c.device)
-    # )
     vp = torch.load(get_path('vp_true')).to(c.device)
-    src_amp_y = torch.load(get_path('src_amp_y')).to(c.device)
-    src_loc = torch.load(get_path('src_loc_y')).to(c.device)
-    obs_data: torch.Tensor = torch.load(get_path('obs_data')).to(c.device)
-    rec_loc = torch.load(get_path('rec_loc_y')).long().to(c.device)
+    src_amp_y = (
+        torch.load(get_path('src_amp_y'))[mid_idx]
+        .view(c.n_shots, 1, -1)
+        .to(c.device)
+    )
+    src_loc = (
+        torch.load(get_path('src_loc_y'))[mid_idx]
+        .repeat(c.n_shots, 1, 1)
+        .to(c.device)
+    )
+    obs_data_iomt: torch.Tensor = (
+        torch.load(get_path('obs_data'))[mid_idx]
+        .view(c.n_shots, -1, c.nt)
+        .to(c.device)
+    )
+    rec_loc = (
+        torch.load(get_path('rec_loc_y'))[mid_idx]
+        .view(c.n_shots, -1, 2)
+        .long()
+        .to(c.device)
+    )
+    # vp = torch.load(get_path('vp_true')).to(c.device)
+    # src_amp_y = torch.load(get_path('src_amp_y')).to(c.device)
+    # src_loc = torch.load(get_path('src_loc_y')).to(c.device)
+    # obs_data: torch.Tensor = torch.load(get_path('obs_data')).to(c.device)
+    # rec_loc = torch.load(get_path('rec_loc_y')).long().to(c.device)
 
     print(c.pretty_str())
 
@@ -139,22 +141,49 @@ def main(cfg: DictConfig):
         if isinstance(v, torch.Tensor):
             print(f'{k=}, {v.shape=}, {v.dtype=}')
 
-    # src_loc[:, :, 1] = 2
+    def forward(y_idx, x_idx):
+        loc = torch.tensor([y_idx, x_idx], device=c.device)
+        loc = loc.repeat(c.n_shots, 1).view(c.n_shots, -1, 2)
+        return dw.scalar(
+            vp,
+            c.dy,
+            dt=c.dt,
+            source_amplitudes=src_amp_y,
+            source_locations=loc,
+            receiver_locations=rec_loc,
+            accuracy=8,
+            pml_freq=c.freq,
+        )[-1]
 
-    u = dw.scalar(
-        vp,
-        c.dy,
-        dt=c.dt,
-        source_amplitudes=src_amp_y,
-        source_locations=src_loc,
-        receiver_locations=rec_loc,
-        accuracy=8,
-        pml_freq=c.freq,
-    )[-1]
+    # y_ref = src_loc[:, :, 0].item()
+    # x_ref = src_loc[:, :, 1].item()
+    y_ref = c.ny // 2
+    x_ref = c.nx // 2
+    obs_data = forward(y_ref, x_ref)
 
-    diff = u - obs_data
-    misfit = torch.nn.functional.mse_loss(u, obs_data)
-    print(f'{misfit.item()=}')
+    def error(y_idx, x_idx):
+        u = forward(y_idx, x_idx)
+        return torch.nn.functional.mse_loss(u, obs_data).item()
+
+    y_srcs = torch.arange(10, c.ny - 10)
+    x_srcs = torch.arange(10, c.nx - 10)
+    final = torch.empty(y_srcs.numel(), x_srcs.numel())
+    start_time = time()
+    for i, yy in enumerate(y_srcs):
+        for j, xx in enumerate(x_srcs):
+            final[i, j] = error(yy, xx)
+            if j == 0:
+                steps_remaining = y_srcs.numel() - i
+                time_elapsed = time() - start_time
+                time_per_step = time_elapsed / (i + 1)
+                time_remaining = steps_remaining * time_per_step
+                print(
+                    f'({i}, {j}) ->'
+                    f' {final[i, j].item()} [{time()-start_time:.2f}s elasped,'
+                    f' {time_remaining:.2f}s remaining]'
+                )
+
+    torch.save(final, get_path('landscape'))
 
 
 if __name__ == "__main__":
