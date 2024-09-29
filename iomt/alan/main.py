@@ -2,7 +2,7 @@ from typing import Tuple
 import numpy as np
 import torch
 import deepwave as dw
-from misfit_toys.utils import bool_slice, clean_idx
+from misfit_toys.utils import bool_slice, clean_idx, git_dump_info
 from mh.typlotlib import save_frames, get_frames_bool
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -24,6 +24,7 @@ def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
             'NaNs detected in'
             f' "{name}"\n{msg}\n{n_nans}/{u.numel()} ({percent_nans:.2f}%)'
         )
+
 
 class SourceAmplitudes(torch.nn.Module):
     def __init__(
@@ -196,7 +197,9 @@ def main(cfg: DictConfig):
         true_error = torch.norm(
             source_amplitudes.loc().detach() - ref_amplitudes.loc().detach()
         )
-        final_loss = loss_val if isinstance(loss_val, float) else loss_val.item()
+        final_loss = (
+            loss_val if isinstance(loss_val, float) else loss_val.item()
+        )
         print(
             f'Epoch {epoch}, Loss: {final_loss}, neg_loc_grad:'
             f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'

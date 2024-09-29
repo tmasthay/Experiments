@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import torch
 import deepwave as dw
-from misfit_toys.utils import bool_slice, clean_idx
+from misfit_toys.utils import bool_slice, clean_idx, git_dump_info
 from mh.typlotlib import save_frames, get_frames_bool
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -86,6 +86,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 
 @hydra.main(config_path='cfg', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
+    with open(hydra_out('git_info.txt'), 'w') as f:
+        f.write(git_dump_info())
+
     c = preprocess_cfg(cfg)
 
     def get_path(x='', ext='pt'):
@@ -108,6 +111,7 @@ def main(cfg: DictConfig):
     # mid_idx = slice(None)
     # vp = c.vel * torch.ones_like(torch.load(get_path('vp_init'))).to(c.device)
     vp = torch.load(get_path('vp_true')).to(c.device)
+    vp = torch.ones_like(vp) * vp.mean()
     src_amp_y = (
         torch.load(get_path('src_amp_y'))[mid_idx]
         .view(c.n_shots, 1, -1)
@@ -165,25 +169,75 @@ def main(cfg: DictConfig):
         u = forward(y_idx, x_idx)
         return torch.nn.functional.mse_loss(u, obs_data).item()
 
-    y_srcs = torch.arange(10, c.ny - 10)
-    x_srcs = torch.arange(10, c.nx - 10)
-    final = torch.empty(y_srcs.numel(), x_srcs.numel())
-    start_time = time()
-    for i, yy in enumerate(y_srcs):
-        for j, xx in enumerate(x_srcs):
-            final[i, j] = error(yy, xx)
-            if j == 0:
-                steps_remaining = y_srcs.numel() - i
-                time_elapsed = time() - start_time
-                time_per_step = time_elapsed / (i + 1)
-                time_remaining = steps_remaining * time_per_step
-                print(
-                    f'({i}, {j}) ->'
-                    f' {final[i, j].item()} [{time()-start_time:.2f}s elasped,'
-                    f' {time_remaining:.2f}s remaining]'
-                )
+    delta = 25
+    step = 1
+    # y_srcs = torch.arange(delta, c.ny-delta, 20)
+    # x_srcs = torch.arange(delta, c.nx-delta, 20)
 
-    torch.save(final, get_path('landscape'))
+    y_srcs = torch.arange(delta, c.ny - delta, step)
+    x_srcs = torch.arange(delta, c.nx - delta, step)
+    # input(f'{y_srcs.shape=}, {x_srcs.shape=}')
+    y_srcs[y_srcs.shape[0] // 2] = y_ref
+    x_srcs[x_srcs.shape[0] // 2] = x_ref
+    srcs = (
+        torch.cartesian_prod(y_srcs, x_srcs)
+        .unsqueeze(0)
+        .permute(1, 0, 2)
+        .to(c.device)
+    )
+    recs = rec_loc.repeat(srcs.shape[0], 1, 1)
+    src_amp_y = src_amp_y.repeat(srcs.shape[0], 1, 1)
+    print(recs.shape)
+    print(src_amp_y.shape)
+    print(srcs.shape)
+
+    batch_size = 2000
+
+    # use numpy split to get the index slices
+    idxs = torch.arange(0, srcs.shape[0], batch_size)
+    if idxs[-1] != srcs.shape[0] - 1:
+        idxs = torch.cat((idxs, torch.tensor([srcs.shape[0]])))
+    idxs = idxs.long().numpy()
+    slices = [slice(idxs[i], idxs[i + 1], 1) for i in range(idxs.shape[0] - 1)]
+    errors = torch.ones(srcs.shape[0], dtype=torch.float32) * 0.0
+    for s in slices:
+        start = time()
+        print(f'({s.start}, {s.stop}) -> ', end='', flush=True)
+        u = dw.scalar(
+            vp,
+            c.dy,
+            dt=c.dt,
+            source_amplitudes=src_amp_y[s],
+            source_locations=srcs[s],
+            receiver_locations=recs[s],
+            accuracy=8,
+            pml_freq=c.freq,
+        )[-1]
+        print(f'{time()-start=}s', flush=True)
+        # errors[s] = torch.nn.functional.mse_loss(u, obs_data.repeat(s.stop - s.start, 1, 1)).cpu()
+        for i in torch.arange(s.start, s.stop):
+            errors[i] = torch.nn.functional.mse_loss(
+                u[i - s.start], obs_data.squeeze()
+            ).cpu()
+
+    torch.save(errors, hydra_out('errors.pt'))
+
+    errors = errors.view(y_srcs.shape[0], x_srcs.shape[0])
+    plt.imshow(
+        errors.T,
+        aspect='auto',
+        cmap='seismic',
+        extent=[y_srcs.min(), y_srcs.max(), x_srcs.min(), x_srcs.max()],
+    )
+    plt.colorbar()
+    plt.savefig(hydra_out('errors.jpg'))
+
+    with open('.latest', 'w') as f:
+        f.write(f'cd {hydra_out()}')
+
+    print('Run below to see the results\n    . .latest')
+
+    os.system(f'code {hydra_out("errors.jpg")}')
 
 
 if __name__ == "__main__":
