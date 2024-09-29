@@ -84,7 +84,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     return c
 
 
-@hydra.main(config_path='cfg', config_name='cfg', version_base=None)
+@hydra.main(config_path='cfg/landscape', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     with open(hydra_out('git_info.txt'), 'w') as f:
         f.write(git_dump_info())
@@ -169,13 +169,9 @@ def main(cfg: DictConfig):
         u = forward(y_idx, x_idx)
         return torch.nn.functional.mse_loss(u, obs_data).item()
 
-    delta = 25
-    step = 1
-    # y_srcs = torch.arange(delta, c.ny-delta, 20)
-    # x_srcs = torch.arange(delta, c.nx-delta, 20)
 
-    y_srcs = torch.arange(delta, c.ny - delta, step)
-    x_srcs = torch.arange(delta, c.nx - delta, step)
+    y_srcs = torch.arange(c.delta, c.ny - c.delta, c.step)
+    x_srcs = torch.arange(c.delta, c.nx - c.delta, c.step)
     # input(f'{y_srcs.shape=}, {x_srcs.shape=}')
     y_srcs[y_srcs.shape[0] // 2] = y_ref
     x_srcs[x_srcs.shape[0] // 2] = x_ref
@@ -212,6 +208,7 @@ def main(cfg: DictConfig):
             receiver_locations=recs[s],
             accuracy=8,
             pml_freq=c.freq,
+            pml_width=c.pml_width
         )[-1]
         print(f'{time()-start=}s', flush=True)
         # errors[s] = torch.nn.functional.mse_loss(u, obs_data.repeat(s.stop - s.start, 1, 1)).cpu()
@@ -223,6 +220,7 @@ def main(cfg: DictConfig):
     torch.save(errors, hydra_out('errors.pt'))
 
     errors = errors.view(y_srcs.shape[0], x_srcs.shape[0])
+    plt.clf()
     plt.imshow(
         errors.T,
         aspect='auto',
@@ -237,7 +235,6 @@ def main(cfg: DictConfig):
 
     print('Run below to see the results\n    . .latest')
 
-    os.system(f'code {hydra_out("errors.jpg")}')
 
 
 if __name__ == "__main__":
