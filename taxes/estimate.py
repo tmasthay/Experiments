@@ -30,7 +30,10 @@ def main(cfg: DictConfig) -> None:
     
     tax = calculate_tax(c.income, tax_brackets, standard_deduction)
     
+    
+    
     print(f"Tax for {c.mode} with income ${c.income:.2f} is: ${tax:.2f}")
+    
 
 if __name__ == "__main__":
     main()
