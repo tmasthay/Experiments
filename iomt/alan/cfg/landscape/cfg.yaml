@@ -29,3 +29,5 @@ dupe: False
 
 delta: 25
 step: 10
+
+model: acoustic
