@@ -125,10 +125,11 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     # c.rt.data.src_amp_x *= scale_up_src
     
     c.rt.t = torch.linspace(0, c.nt * c.dt, c.nt, device=c.device)
-    # time_signature = ricker(c.rt.t, freq=c.freq, peak_time=c.peak_time_factor / c.freq)
-    time_signature = torch.sin(2 * torch.pi * c.freq * c.rt.t) / (1e-08 + c.rt.t)
+    time_signature = ricker(c.rt.t, freq=c.freq, peak_time=c.peak_time_factor / c.freq)
+    # time_signature = torch.sin(2 * torch.pi * c.freq * c.rt.t) / (1e-08 + c.rt.t)
     # time_signature = torch.ones(c.nt, device=c.device)
-    c.rt.data.src_amp_y = time_signature.view(1, 1, -1).repeat(c.n_shots, 1, 1)
+    scale = 1e9
+    c.rt.data.src_amp_y = scale * time_signature.view(1, 1, -1).repeat(c.n_shots, 1, 1)
     c.rt.data.src_amp_x = c.rt.data.src_amp_y.clone()
 
     c.peak_time = c.peak_time_factor / c.freq
@@ -163,13 +164,13 @@ def main(cfg: DictConfig):
     c.rt.data.vs_true = conversion_factor * c.rt.data.vs_true
     c.rt.data.rho_true = conversion_factor * c.rt.data.rho_true
     
-    c.rt.data.vp_true = torch.ones_like(c.rt.data.vp_true) * 3000.0
-    c.rt.data.vs_true = torch.ones_like(c.rt.data.vs_true) * 3000.0 / torch.sqrt(torch.tensor(3.0))
-    c.rt.data.rho_true = torch.ones_like(c.rt.data.rho_true) * 1.0
+    # c.rt.data.vp_true = torch.ones_like(c.rt.data.vp_true) * 3000.0
+    # c.rt.data.vs_true = torch.ones_like(c.rt.data.vs_true) * 3000.0 / torch.sqrt(torch.tensor(3.0))
+    # c.rt.data.rho_true = torch.ones_like(c.rt.data.rho_true) * 1.0
 
-    # zero_idx = c.rt.data.vs_true == 0.0
-    # scaling = 1.0 / 3.0
-    # c.rt.data.vs_true[zero_idx] = c.rt.data.vp_true[zero_idx] * scaling
+    zero_idx = c.rt.data.vs_true == 0.0
+    scaling = 1.0 / 3.0
+    c.rt.data.vs_true[zero_idx] = c.rt.data.vp_true[zero_idx] * scaling
 
     assert c.rt.data.vp_true.min() > 0.0
     assert c.rt.data.vs_true.min() > 0.0
@@ -346,13 +347,13 @@ def main(cfg: DictConfig):
     plt.savefig(hydra_out('true_obs.jpg'))
         
     # os.system(f'code {hydra_out("res")}.gif')
-    os.system(f'code {hydra_out("true_obs.jpg")}')
+    # os.system(f'code {hydra_out("true_obs.jpg")}')
 
-    with open('.latest', 'w') as f:
-        f.write(f'cd {hydra_out()}')
+    # with open('.latest', 'w') as f:
+    #     f.write(f'cd {hydra_out()}')
 
-    print('Run below to see the results\n    . .latest')
-    exit(-1)
+    # print('Run below to see the results\n    . .latest')
+    # exit(-1)
     obs_data = u
     input(
         f'{obs_data.min()}, {obs_data.max()}, {c.dt=}, {c.nt=}, {c.nt * c.dt=},'
