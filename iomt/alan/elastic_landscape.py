@@ -14,7 +14,7 @@ from omegaconf import OmegaConf, DictConfig
 from dotmap import DotMap
 from mh.core import hydra_out, DotDict, set_print_options, torch_stats
 from misfit_toys.swiffer import dupe
-from time import time
+from time import time, sleep
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
 
 set_print_options(callback=torch_stats('all'))
@@ -94,8 +94,12 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     with open(get_path('metadata', 'pydict')) as f:
         metadata = DotDict(eval(f.read()))
 
-    meta_priority = {'ny', 'nx', 'nt', 'dy', 'dx', 'dt', 'freq', 'peak_time'}
+    # meta_priority = {'ny', 'nx', 'nt', 'dy', 'dx', 'dt', 'freq', 'peak_time'}
+    # meta_priority = {'ny', 'nx', 'nt', 'dy', 'dx', 'dt'}
+    meta_priority = {'ny', 'nx', 'dy', 'dx'}
+
     keys = set(metadata.keys())
+
     assert meta_priority.issubset(keys), f'missing keys: {meta_priority - keys}'
     for k, v in metadata.items():
         if k in c.keys() and k in meta_priority:
@@ -111,6 +115,10 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
                 c.device
             )
 
+    c.peak_time = c.peak_time_factor / c.freq
+    c.plt.final.save.path = hydra_out(c.plt.final.save.path)
+    c.sleep_time = c.get('sleep_time', None)
+    c.tol = c.get('tol', 1e-6)
     return c
 
 
@@ -130,11 +138,21 @@ def main(cfg: DictConfig):
 
     # c.rt.data.vp_true = c.eps + c.rt.data.vp_true
     # c.rt.data.vs_true = c.eps + c.rt.data.vs_true
-    
+
     # convert km/s to m/s
-    c.rt.data.vp_true = 1000.0 * c.rt.data.vp_true
-    c.rt.data.vs_true = 1000.0 * c.rt.data.vs_true
-    c.rt.data.rho_true = 1000.0 * c.rt.data.rho_true
+    conversion_factor = 1e4
+    c.rt.data.vp_true = conversion_factor * c.rt.data.vp_true
+    c.rt.data.vs_true = conversion_factor * c.rt.data.vs_true
+    c.rt.data.rho_true = conversion_factor * c.rt.data.rho_true
+
+    zero_idx = c.rt.data.vs_true == 0.0
+    scaling = 1.0 / 3.0
+    c.rt.data.vs_true[zero_idx] = c.rt.data.vp_true[zero_idx] * scaling
+
+    assert c.rt.data.vp_true.min() > 0.0
+    assert c.rt.data.vs_true.min() > 0.0
+    assert c.rt.data.rho_true.min() > 0.0
+    assert (c.rt.data.vp_true >= c.rt.data.vs_true).all()
 
     mid_shot = c.n_shots // 2
     for k, v in c.rt.data.items():
@@ -143,6 +161,7 @@ def main(cfg: DictConfig):
 
     # report_tensor_status(c.rt.data)
 
+    # input(c.device)
     def forward(y_idx, x_idx):
         loc = torch.tensor([y_idx, x_idx], device=c.device)
         loc = loc.repeat(c.n_shots, 1).view(c.n_shots, -1, 2)
@@ -167,6 +186,9 @@ def main(cfg: DictConfig):
     y_ref = c.ny // 2
     x_ref = c.nx // 2
     obs_data = forward(y_ref, x_ref)
+    input(f'{obs_data.min()}, {obs_data.max()}, {c.dt=}, {c.nt=}, {c.nt * c.dt=}, {c.rt.data.vp_true.min()=}, {c.rt.data.vs_true.min()=}, {c.rt.data.rho_true.min()=}, {c.rt.data.vp_true.max()=}, {c.rt.data.vs_true.max()=}, {c.rt.data.rho_true.max()=}')
+    if torch.norm(obs_data) < c.tol:
+        raise ValueError(f'obs_data is essentially zero {torch.norm(obs_data)=}')
 
     def error(y_idx, x_idx):
         u = forward(y_idx, x_idx)
@@ -192,7 +214,15 @@ def main(cfg: DictConfig):
 
     # Batch size decided on for a 24GB RTX 3090
     #     adjust according to your GPU VRAM
-    batch_size = 80
+    batch_size = c.get('batch_size', 60)
+
+    if c.sleep_time is not None:
+        print(
+            f'{src_loc_y.shape[0]} forward solves to be executed.\nYou have'
+            f' {c.sleep_time} seconds to press CTRL+C to cancel immediately.\n'
+            'Otherwise, there will be a significant delay from CPU <-> GPU signal interruption sending.\n'
+        )
+        sleep(c.sleep_time)
 
     # use numpy split to get the index slices
     idxs = torch.arange(0, src_loc_y.shape[0], batch_size)
@@ -200,7 +230,9 @@ def main(cfg: DictConfig):
         idxs = torch.cat((idxs, torch.tensor([src_loc_y.shape[0]])))
     idxs = idxs.long().numpy()
     slices = [slice(idxs[i], idxs[i + 1], 1) for i in range(idxs.shape[0] - 1)]
-    errors = torch.ones(src_loc_y.shape[0], dtype=torch.float32) * 0.0
+    errors = torch.zeros(src_loc_y.shape[0], dtype=torch.float32) * 100.0
+    final_wavefield_y = torch.zeros(src_loc_y.shape[0], *c.rt.data.vp_true.shape)
+    final_wavefield_x = torch.zeros(src_loc_y.shape[0], *c.rt.data.vp_true.shape)
     num_slices = len(slices)
     for i, s in enumerate(slices):
         start = time()
@@ -224,9 +256,14 @@ def main(cfg: DictConfig):
         print(f'{time()-start=}s ::: {percent_complete}%', flush=True)
         # errors[s] = torch.nn.functional.mse_loss(u, obs_data.repeat(s.stop - s.start, 1, 1)).cpu()
         for i in torch.arange(s.start, s.stop):
-            errors[i] = torch.nn.functional.mse_loss(
-                u[i - s.start], obs_data.squeeze()
-            ).cpu()
+            errors[i] = (
+                torch.nn.functional.mse_loss(u[i - s.start], obs_data.squeeze())
+                .detach()
+                .cpu()
+            )
+            w = c.pml_width
+            final_wavefield_y[i] = res[0][i - s.start, w:-w, w:-w].detach().cpu()
+            final_wavefield_x[i] = res[1][i - s.start, w:-w, w:-w].detach().cpu()
 
     torch.save(errors, hydra_out('errors.pt'))
 
@@ -250,7 +287,38 @@ def main(cfg: DictConfig):
     plt.imshow(c.rt.data.vs_true.detach().cpu().squeeze().T, **opts)
     plt.colorbar()
     plt.savefig(hydra_out('vs_true.jpg'))
-    
+
+    final = DotDict({'subplot': {'shape': (2, 1), 'kw': {'figsize': (10, 10)}}})
+
+    pcfg = c.plt.final
+    fig, axes = plt.subplots(*pcfg.subplot.shape, **pcfg.subplot.setup_kw)
+    iter = bool_slice(*final_wavefield_y.shape, **pcfg.iter)
+
+    def plotter(*, data, idx, fig, axes):
+        curr_src_x = src_loc_x[0][idx[0]].cpu().tolist()
+        curr_src_y = src_loc_y[0][idx[0]].cpu().tolist()
+        print(f'{clean_idx(idx)} -> {curr_src_x=}, {curr_src_y=}')
+        plt.clf()
+        plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[0])
+        plt.imshow(data.xcomp[idx].T, **pcfg.imshow, vmin=data.xcomp.min(), vmax=data.xcomp.max())
+        plt.colorbar()
+        plt.title(f'{pcfg.title} X component {curr_src_x=}, {curr_src_y=}')
+
+        plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[1])
+        plt.imshow(data.ycomp[idx].T, **pcfg.imshow, vmin=data.ycomp.min(), vmax=data.ycomp.max())  
+        plt.title(f'{pcfg.title} Y component {curr_src_x=}, {curr_src_y=}')
+        plt.colorbar()
+        # plt.savefig(f'{hydra_out(pcfg.save)}_{clean_idx(idx)}.jpg')
+
+    frames = get_frames_bool(
+        data=DotDict({'xcomp': final_wavefield_x, 'ycomp': final_wavefield_y}),
+        iter=iter,
+        plotter=plotter,
+        fig=fig,
+        axes=axes,
+    )
+    save_frames(frames, **c.plt.final.save)
+
     print(f"See {hydra_out('errors.jpg')}")
     print(f"See {hydra_out('vp_true.jpg')}")
     print(f"See {hydra_out('vs_true.jpg')}")
