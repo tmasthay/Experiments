@@ -263,9 +263,10 @@ def main(cfg: DictConfig):
         print(
             f'{src_loc_y.shape[0]} forward solves to be executed.\n'
             'Estimated time to complete\n'
-            f'    {est_time} seconds or equivalently,'
-            f'    {est_time / 3600} hours\nYou have'
-            f' {c.sleep_time} seconds to press CTRL+C to cancel'
+            f'    {est_time / 3600} HOURS\n'
+            f'    {est_time / 60} MINUTES\n'
+            f'    {est_time} SECONDS\n'
+            f'You have {c.sleep_time} seconds to press CTRL+C to cancel'
             ' immediately.\nOtherwise, there will be a significant delay from'
             ' CPU <-> GPU signal interruption sending.\n'
         )
