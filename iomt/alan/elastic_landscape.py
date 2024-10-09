@@ -330,46 +330,46 @@ def main(cfg: DictConfig):
     plt.colorbar()
     plt.savefig(hydra_out('vs_true.jpg'))
 
-    final = DotDict({'subplot': {'shape': (2, 1), 'kw': {'figsize': (10, 10)}}})
+    # final = DotDict({'subplot': {'shape': (2, 1), 'kw': {'figsize': (10, 10)}}})
 
-    pcfg = c.plt.final
-    fig, axes = plt.subplots(*pcfg.subplot.shape, **pcfg.subplot.setup_kw)
-    iter = bool_slice(*final_wavefield_y.shape, **pcfg.iter)
+    # pcfg = c.plt.final
+    # fig, axes = plt.subplots(*pcfg.subplot.shape, **pcfg.subplot.setup_kw)
+    # iter = bool_slice(*final_wavefield_y.shape, **pcfg.iter)
 
-    def plotter(*, data, idx, fig, axes):
-        curr_src_x = src_loc_x[0][idx[0]].cpu().tolist()
-        curr_src_y = src_loc_y[0][idx[0]].cpu().tolist()
-        print(f'{clean_idx(idx)} -> {curr_src_x=}, {curr_src_y=}')
-        plt.clf()
-        plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[0])
-        plt.imshow(
-            data.xcomp[idx].T,
-            **pcfg.imshow,
-            vmin=data.xcomp.min(),
-            vmax=data.xcomp.max(),
-        )
-        plt.colorbar()
-        plt.title(f'{pcfg.title} X component {curr_src_x=}, {curr_src_y=}')
+    # def plotter(*, data, idx, fig, axes):
+    #     curr_src_x = src_loc_x[0][idx[0]].cpu().tolist()
+    #     curr_src_y = src_loc_y[0][idx[0]].cpu().tolist()
+    #     print(f'{clean_idx(idx)} -> {curr_src_x=}, {curr_src_y=}')
+    #     plt.clf()
+    #     plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[0])
+    #     plt.imshow(
+    #         data.xcomp[idx].T,
+    #         **pcfg.imshow,
+    #         vmin=data.xcomp.min(),
+    #         vmax=data.xcomp.max(),
+    #     )
+    #     plt.colorbar()
+    #     plt.title(f'{pcfg.title} X component {curr_src_x=}, {curr_src_y=}')
 
-        plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[1])
-        plt.imshow(
-            data.ycomp[idx].T,
-            **pcfg.imshow,
-            vmin=data.ycomp.min(),
-            vmax=data.ycomp.max(),
-        )
-        plt.title(f'{pcfg.title} Y component {curr_src_x=}, {curr_src_y=}')
-        plt.colorbar()
-        # plt.savefig(f'{hydra_out(pcfg.save)}_{clean_idx(idx)}.jpg')
+    #     plt.subplot(*pcfg.subplot.shape, pcfg.subplot.order[1])
+    #     plt.imshow(
+    #         data.ycomp[idx].T,
+    #         **pcfg.imshow,
+    #         vmin=data.ycomp.min(),
+    #         vmax=data.ycomp.max(),
+    #     )
+    #     plt.title(f'{pcfg.title} Y component {curr_src_x=}, {curr_src_y=}')
+    #     plt.colorbar()
+    #     # plt.savefig(f'{hydra_out(pcfg.save)}_{clean_idx(idx)}.jpg')
 
-    frames = get_frames_bool(
-        data=DotDict({'xcomp': final_wavefield_x, 'ycomp': final_wavefield_y}),
-        iter=iter,
-        plotter=plotter,
-        fig=fig,
-        axes=axes,
-    )
-    save_frames(frames, **c.plt.final.save)
+    # frames = get_frames_bool(
+    #     data=DotDict({'xcomp': final_wavefield_x, 'ycomp': final_wavefield_y}),
+    #     iter=iter,
+    #     plotter=plotter,
+    #     fig=fig,
+    #     axes=axes,
+    # )
+    # save_frames(frames, **c.plt.final.save)
 
     print(f"See {hydra_out('errors.jpg')}")
     print(f"See {hydra_out('vp_true.jpg')}")
@@ -378,6 +378,7 @@ def main(cfg: DictConfig):
     with open('.latest', 'w') as f:
         f.write(f'cd {hydra_out()}')
 
+    os.system(f'code {hydra_out("errors.jpg")}')
     print('Run below to see the results\n    . .latest')
 
 

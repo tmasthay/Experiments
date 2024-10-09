@@ -1,0 +1,19 @@
+defaults:
+  - _self_
+
+import_specs:
+  delim: "|"
+  key: ^^
+  ignore_spaces: true
+
+a: 
+  __call__: ^^ | operator | mul
+  args: 
+    - 10
+    - 20
+
+resolve_order: 
+  - [__cl_vp__, __slf_vp__]
+  - [__cl_vs__, __slf_vs__]
+  - [__cl_rho__, __slf_rho__]
+  - [__call__, __slf__]
