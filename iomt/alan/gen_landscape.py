@@ -31,7 +31,8 @@ from misfit_toys.swiffer import dupe
 from time import time, sleep
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
 
-set_print_options(callback=torch_stats('all'))
+# set_print_options(callback=torch_stats('all'))
+set_print_options(callback=torch_stats(['shape']))
 
 
 def dict_diff(d1, d2, *, name1='d1', name2='d2'):

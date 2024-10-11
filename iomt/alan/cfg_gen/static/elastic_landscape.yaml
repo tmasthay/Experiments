@@ -17,8 +17,8 @@ grid:
 src:
   n_shots: 1
   src_per_shot: 1
-  upper_left: [0.1, 0.1]
-  lower_right: [0.9, 0.9]
+  lower_left: [0.1, 0.9]
+  upper_right: [0.9, 0.1]
 
 rec:
   n_recs: 100
