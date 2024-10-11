@@ -1,0 +1,8 @@
+__call_rec_loc__: __import__ cwd @ helpers @ rel_fixed_depth_rec
+n_shots: self_rec_loc.src.n_shots
+rec_per_shot: self_rec_loc.rec.n_recs
+first: 0.1
+last: 0.9
+ny: self_rec_loc.grid.ny
+depth: self_rec_loc.rec.depth
+device: self_rec_loc.device

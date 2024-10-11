@@ -1,0 +1,10 @@
+defaults:
+  - _self_
+  - vp: ${static}
+  - vs: ${static}
+  - rho: ${static}
+  - src_loc: ${static}
+  - rec_loc: ${static}
+  - src_amp: ${static}
+
+loader: __import__ @ torch @ load

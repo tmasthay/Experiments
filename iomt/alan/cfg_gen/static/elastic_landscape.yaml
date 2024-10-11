@@ -1,3 +1,27 @@
 # @package _global_
 
-nt: 10
+device: cuda:1
+path: ${oc.env:CONDA_PREFIX}/data/marm2/smooth
+
+solver:
+  pml_width: 20
+
+grid:
+  ny: 3400
+  nx: 700
+  nt: 750
+  dy: 16.0
+  dx: 16.0
+  dt: 0.004
+
+src:
+  n_shots: 1
+  src_per_shot: 1
+  upper_left: [0.1, 0.1]
+  lower_right: [0.9, 0.9]
+
+rec:
+  n_recs: 100
+  first: 0.1
+  last: 0.9
+  depth: 2

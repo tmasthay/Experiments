@@ -62,16 +62,22 @@ def dict_diff(d1, d2, *, name1='d1', name2='d2'):
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
     c = DotDict(OmegaConf.to_container(cfg, resolve=True))
-    
+
     # put any derivations of the config here but they cannot rely on the rt variables
     # These should only be of very basic type conversions or other simple operations
     # For example, if you have t0=0, dt=0.1, nt=100, then go ahead and calculate
     #     c.t = torch.linspace(c.t0, c.t0 + c.dt * (c.nt - 1), c.nt)
     # But ONLY these types of calculations should be done here! Anything more complex
     #    should be handled in the runtime part of the config "rt" section!
-    c = runtime_reduce(c, relax=True, allow_implicit=True, exc=['rt', 'resolve_order'])
-    
-    
+    c = runtime_reduce(
+        c,
+        relax=True,
+        allow_implicit=True,
+        exc=['rt', 'resolve_order'],
+        call_key="__call_pre__",
+        self_key="self_pre",
+    )
+
     cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order']).dict())
     resolve_order = deepcopy(c.resolve_order or [])
     del c.resolve_order
@@ -97,11 +103,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     return c
 
 
-@hydra.main(
-    config_path='cfg_gen',
-    config_name='cfg',
-    version_base=None,
-)
+@hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
     print(c)

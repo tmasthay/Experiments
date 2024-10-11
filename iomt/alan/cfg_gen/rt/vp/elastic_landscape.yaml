@@ -1,0 +1,4 @@
+__call_vp__: ${..loader}
+args:
+  - ${path}/vp_true.pt
+  - ${device}
