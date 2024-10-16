@@ -38,15 +38,20 @@ set_print_options(callback=torch_stats(['shape']))
 
 
 def get_last_run_dir():
-    cmd = ' | '.join([
-        """find "$(pwd)" -mindepth 1 -maxdepth 5  -type f -name "__COMPLETE__" -exec stat --format='%y %n' {} +""",
-        'sort',
-        'tail -n 1',
-    ])
-    res1 = sco(cmd, split=False)
-    res2 = res1.split()[-1].replace('/.hydra', '').split("/")[:-1]
-    res = '/'.join(res2)
-    return res
+    try:
+        cmd = ' | '.join(
+            [
+                """find "$(pwd)" -mindepth 1 -maxdepth 5  -type f -name "__COMPLETE__" -exec stat --format='%y %n' {} +""",
+                'sort',
+                'tail -n 1',
+            ]
+        )
+        res1 = sco(cmd, split=False)
+        res2 = res1.split()[-1].replace('/.hydra', '').split("/")[:-1]
+        res = '/'.join(res2)
+        return res
+    except Exception as e:
+        return None
 
 
 def input_with_timeout(prompt, default_val, timeout_time):
@@ -94,7 +99,40 @@ def dict_diff(d1, d2, *, name1='d1', name2='d2'):
 
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
-    c = DotDict(OmegaConf.to_container(cfg, resolve=True))
+    prev_data_dir = cfg.prev_data_dir or get_last_run_dir()
+    if prev_data_dir is None:
+        use_prev_data = False
+    else:
+        use_prev_data = cfg.use_prev_data
+    if use_prev_data:
+        # reload the config from the previous run
+        c2 = OmegaConf.to_container(
+            OmegaConf.load(pj(prev_data_dir, '.hydra', 'config.yaml')),
+            resolve=True,
+        )
+        c1 = OmegaConf.to_container(cfg, resolve=True)
+
+        precedence = c1.get('precedence', ['postprocess'])
+
+        c = {}
+        for k, v in c1.items():
+            if k in precedence or k not in c2:
+                c[k] = v
+        for k, v in c2.items():
+            if k not in precedence or k not in c:
+                c[k] = v
+        c = DotDict(c)
+
+        # rewrite the config.yaml, overrides.yaml, and hydra.yaml
+        # to the new output directory
+        for f in ['config.yaml', 'overrides.yaml', 'hydra.yaml']:
+            ref = pj(prev_data_dir, '.hydra', f)
+            new_copy = pj(hydra_out(), '.hydra', f)
+            os.system(f'cp {ref} {new_copy}')
+    else:
+        c = DotDict(OmegaConf.to_container(cfg, resolve=True))
+    c.use_prev_data = use_prev_data
+    c.prev_data_dir = prev_data_dir
     c = exec_imports(
         c,
         delim=c.import_specs.delim,
@@ -158,19 +196,23 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 
     return c
 
+
 def read_prev_data(c: DotDict, path: str) -> DotDict:
     # get all absolute paths to pytorch files in "path"
     all_files = sco(f'find {path} -type f -name "*.pt"')
-    keys = ['.'.join(f.replace('.pt', '').split('/')[-1].split('___')) for f in all_files]
+    keys = [
+        '.'.join(f.replace('.pt', '').split('/')[-1].split('___'))
+        for f in all_files
+    ]
     for k, f in zip(keys, all_files):
         c[k] = torch.load(f)
     return c
-    
+
 
 @hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-    
+
     if not c.use_prev_data:
         try:
             ref_size = (1000, 1000, 1000)
@@ -186,7 +228,10 @@ def main(cfg: DictConfig):
                 ref_time_per_forward_solve * num_forward_solves * size_factor
             )
 
-            print(f'Estimated time for forward solves: {estimated_time:.2f} seconds')
+            print(
+                'Estimated time for forward solves:'
+                f' {estimated_time:.2f} seconds'
+            )
 
             if input_with_timeout('Continue? [y/n] y: ', 'y', 3).lower() != 'y':
                 print('Exiting...')
@@ -203,13 +248,14 @@ def main(cfg: DictConfig):
             c.prev_data_dir = get_last_run_dir()
         print(f'Loading previous data from run at\n    {c.prev_data_dir}')
         c = read_prev_data(c, path=c.prev_data_dir)
-        
+
     # always callback the postprocessing even if we used previous data
+    # c = runtime_reduce(c, call_key='__call_post__', self_key='self_post')
     c.postprocess.callback(c, path=hydra_out())
 
     with open('.latest', 'w') as f:
         f.write(f'cd {hydra_out()}')
-        
+
     with open(f'{pj(hydra_out(), "__COMPLETE__")}', 'w') as f:
         f.write('-- RUN FINISHED --\n    This file is simply a placeholder')
 

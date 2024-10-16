@@ -9,16 +9,19 @@ from mh.typlotlib import get_frames_bool, save_frames, bool_slice, clean_idx
 from time import time
 import torch.nn.functional as F
 
+
 def easy_imshow(
     data,
     *,
     transpose=False,
     imshow=None,
     colorbar=True,
-    xlabel='Offset (m)',
-    ylabel='Depth (m)',
+    xlabel='',
+    ylabel='',
     title='',
     extent=None,
+    bound_data=None,
+    clip=1.0,
     **kw,
 ):
     imshow = imshow or {}
@@ -26,6 +29,12 @@ def easy_imshow(
         data = data.T
     if extent is not None:
         imshow['extent'] = extent
+
+    bound_data = bound_data or data
+    vmin, vmax = bound_data.min(), bound_data.max()
+    imshow['vmin'] = vmin + clip * abs(vmin)
+    imshow['vmax'] = vmax - clip * abs(vmax)
+
     plt.imshow(data.detach().cpu(), **imshow, **kw)
     if colorbar:
         plt.colorbar()
@@ -34,7 +43,8 @@ def easy_imshow(
     if ylabel:
         plt.ylabel(ylabel)
     plt.title(title)
-    
+
+
 def fixed_depth_rec(
     *,
     n_shots: int,
@@ -368,6 +378,8 @@ def plot_landscape(c: DotDict, *, path):
     obs = c.rt.res.obs
     errors = c.rt.res.errors
 
+    opts = c.postprocess.plt
+
     src_loc_y = (
         c.rt.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
     )
@@ -376,8 +388,8 @@ def plot_landscape(c: DotDict, *, path):
     )
     errors_flat = errors.view(-1)
 
-    plt.imshow(errors.cpu(), aspect='auto', cmap='gray')
-    plt.colorbar()
+    # plt.imshow(errors.cpu(), aspect='auto', cmap='gray')
+    easy_imshow(errors.cpu(), **opts.errors)
     plt.savefig(pj(path, 'landscape.png'))
     print(f'Saved landscape to {pj(path, "landscape.png")}')
 
