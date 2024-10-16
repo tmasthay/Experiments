@@ -1,4 +1,6 @@
-__call_rho__: ${dep.helpers} load_and_scale
+__call_rho__: ${dep.helpers} load_scale_resample
 path: ${path}/rho_true.pt
 device: ${device}
 scaling: 1000.0
+ny: ${grid.ny}
+nx: ${grid.nx}

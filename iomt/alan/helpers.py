@@ -7,6 +7,7 @@ from mh.core import DotDict
 from os.path import join as pj
 from mh.typlotlib import get_frames_bool, save_frames, bool_slice, clean_idx
 from time import time
+import torch.nn.functional as F
 
 
 def fixed_depth_rec(
@@ -152,13 +153,33 @@ def load_clamp_vs(
     assert 0.0 < rel_vp_scaling <= 1.0
     assert 0.0 < global_scaling
     vs = global_scaling * torch.load(path, map_location=device)
+    if vs.shape != vp.shape:
+        vs = F.interpolate(
+            vs[None, None, ...],
+            size=vp.shape[-2:],
+            mode='bilinear',
+            align_corners=True,
+        ).squeeze(0).squeeze(0)
+        
     zero_idx = vs == 0.0
     vs[zero_idx] = vp[zero_idx] * rel_vp_scaling
     return vs
 
 
-def load_and_scale(*, path: str, device: str, scaling: float = 1.0):
-    return torch.load(path, map_location=device) * scaling
+def load_scale_resample(
+    *, path: str, device: str, scaling: float = 1.0, ny: int, nx: int
+):
+    u = torch.load(path, map_location=device) * scaling
+
+    if ny != u.shape[0] or nx != u.shape[1]:
+        u = F.interpolate(
+            u[None, None, ...],
+            size=(ny, nx),
+            mode='bilinear',
+            align_corners=True,
+        )
+        
+    return u.squeeze(0).squeeze(0)
 
 
 def easy_elastic(
@@ -384,3 +405,28 @@ def plot_landscape(c: DotDict, *, path):
     )
     save_frames(frames, path=pj(path, 'obs'))
     print(f'\nSaved obs_data to {pj(path, "obs.gif")}\n')
+    
+    plt.clf()
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    
+    plt.suptitle("Elastic seismic medium")
+    
+    plt.subplot(1, 3, 1)
+    plt.imshow(c.rt.vp.cpu().T, aspect='auto', cmap='seismic')
+    plt.colorbar()
+    plt.title("Vp")
+
+    plt.subplot(1, 3, 2)
+    plt.imshow(c.rt.vs.cpu().T, aspect='auto', cmap='seismic')
+    plt.colorbar()
+    plt.title("Vs")
+    
+    plt.subplot(1, 3, 3)
+    plt.imshow(c.rt.rho.cpu().T, aspect='auto', cmap='seismic')
+    plt.colorbar()
+    plt.title("Rho")
+    
+    plt.savefig(pj(path, 'medium.png'))
+    print(f'Saved vp,vs,rho to {pj(path, "medium.png")}')
+    
+    

@@ -1,5 +1,5 @@
 __call_vs__: ${dep.helpers} load_clamp_vs
-path: ${path}/vp_true.pt
+path: ${path}/vs_true.pt
 device: ${device}
 vp: self_vs.rt.vp
 rel_vp_scaling: 0.5

@@ -1,6 +1,7 @@
 # flake8: noqa
 from copy import deepcopy
 import os
+import signal
 from typing import Tuple
 import numpy as np
 import torch
@@ -34,7 +35,23 @@ from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
 # set_print_options(callback=torch_stats('all'))
 set_print_options(callback=torch_stats(['shape']))
 
+def input_with_timeout(prompt, default_val, timeout_time):
+    def timeout_handler(signum, frame):
+        raise TimeoutError
 
+    # Set up the signal handler
+    signal.signal(signal.SIGALRM, timeout_handler)
+
+    try:
+        # Start the timer with the given timeout time
+        signal.alarm(timeout_time)
+        user_input = input(prompt)
+        # Cancel the alarm if input is received in time
+        signal.alarm(0)
+        return user_input
+    except TimeoutError:
+        return default_val
+    
 def dict_diff(d1, d2, *, name1='d1', name2='d2'):
     if isinstance(d1, DotDict):
         d1 = d1.dict()
@@ -69,7 +86,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         import_key=c.import_specs.key,
         ignore_spaces=c.import_specs.ignore_spaces,
     )
-
+    
     # put any derivations of the config here but they cannot rely on the rt variables
     # These should only be of very basic type conversions or other simple operations
     # For example, if you have t0=0, dt=0.1, nt=100, then go ahead and calculate
@@ -131,7 +148,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
     try:
+        begin_time = time()
         c.rt.res = c.main.callback(c)
+        total_time = time() - begin_time
     except Exception as e:
         # print(f'Error: {e}')
         print(f'{c.main=}')
@@ -142,6 +161,8 @@ def main(cfg: DictConfig):
         f.write(f'cd {hydra_out()}')
 
     print(f'\nRun . .latest to cd to the latest output directory\n')
+    
+    print(f'Run time of main callback: {total_time:.2f} seconds')
 
 
 if __name__ == "__main__":
