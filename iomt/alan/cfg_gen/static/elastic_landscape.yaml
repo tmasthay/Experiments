@@ -1,5 +1,10 @@
 # @package _global_
 
+defaults:
+  - _self_
+  - main: ${static}
+  - postprocess: ${static}
+
 dep:
   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
   op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
@@ -7,11 +12,7 @@ dep:
   iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
   utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
   types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
-
-main: ${dep.helpers} elastic_landscape_loop
-postprocess: 
-  callback: ${dep.helpers} dump_and_plot_tensors
-  plt: ${dep.helpers} plot_landscape
+  
 
 device: cuda:1
 path: ${oc.env:CONDA_PREFIX}/data/marm2/smooth

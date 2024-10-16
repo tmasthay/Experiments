@@ -121,6 +121,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     bnd_assert(c.bounds.vs, c.rt.vs, 'vs')
     bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
 
+    # Assert that the vp/vs ratio is within bounds
     assert not (c.rt.vp < c.rt.vs).any()
 
     return c
@@ -129,7 +130,12 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 @hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-    c.rt.res = c.main(c)
+    try:
+        c.rt.res = c.main.callback(c)
+    except Exception as e:
+        # print(f'Error: {e}')
+        print(f'{c.main=}')
+        raise e
     c.postprocess.callback(c, path=hydra_out())
 
     with open('.latest', 'w') as f:

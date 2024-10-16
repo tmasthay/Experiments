@@ -1,0 +1,2 @@
+callback: ${dep.helpers} dump_and_plot_tensors
+plt: ${dep.helpers} plot_landscape
