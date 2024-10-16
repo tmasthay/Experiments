@@ -63,6 +63,12 @@ def dict_diff(d1, d2, *, name1='d1', name2='d2'):
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
     c = DotDict(OmegaConf.to_container(cfg, resolve=True))
+    c = exec_imports(
+        c,
+        delim=c.import_specs.delim,
+        import_key=c.import_specs.key,
+        ignore_spaces=c.import_specs.ignore_spaces,
+    )
 
     # put any derivations of the config here but they cannot rely on the rt variables
     # These should only be of very basic type conversions or other simple operations
@@ -79,7 +85,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         self_key="self_pre",
     )
 
-    cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order']).dict())
+    cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order', 'dep']).dict())
     resolve_order = deepcopy(c.resolve_order or [])
     del c.resolve_order
     c = exec_imports(
@@ -98,8 +104,24 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
             allow_implicit=True,
         )
 
-        non_rt_diff = dict_diff(c.filter(exclude=['rt']).dict(), cfg_orig)
+        non_rt_diff = dict_diff(
+            c.filter(exclude=['rt', 'dep']).dict(), cfg_orig
+        )
         assert non_rt_diff == {}, f'{c=}, {non_rt_diff=}, {cfg_orig=}'
+
+    def bnd_assert(bounds, val, name):
+        assert (
+            bounds[0] < val.min()
+        ), f'lower={bounds[0]}, {name}_min={val.min()}'
+        assert (
+            val.max() < bounds[1]
+        ), f'{name}_max={val.max()}, upper={bounds[1]}'
+
+    bnd_assert(c.bounds.vp, c.rt.vp, 'vp')
+    bnd_assert(c.bounds.vs, c.rt.vs, 'vs')
+    bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
+
+    assert not (c.rt.vp < c.rt.vs).any()
 
     return c
 
@@ -107,7 +129,13 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 @hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-    print(c)
+    c.rt.res = c.main(c)
+    c.postprocess.callback(c, path=hydra_out())
+
+    with open('.latest', 'w') as f:
+        f.write(f'cd {hydra_out()}')
+
+    print(f'\nRun . .latest to cd to the latest output directory\n')
 
 
 if __name__ == "__main__":

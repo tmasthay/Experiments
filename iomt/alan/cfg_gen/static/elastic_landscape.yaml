@@ -1,27 +1,54 @@
 # @package _global_
 
+dep:
+  helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
+  op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
+  torch: ${import_specs.key} ${import_specs.delim} torch ${import_specs.delim}
+  iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
+  utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
+  types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
+
+main: ${dep.helpers} elastic_landscape_loop
+postprocess: 
+  callback: ${dep.helpers} dump_and_plot_tensors
+  plt: ${dep.helpers} plot_landscape
+
 device: cuda:1
 path: ${oc.env:CONDA_PREFIX}/data/marm2/smooth
+batch_size: 40
 
 solver:
   pml_width: 20
+  accuracy: 4
+  pml_freq: 2.5
 
 grid:
   ny: 3400
   nx: 700
-  nt: 750
+  nt: 3000
   dy: 16.0
   dx: 16.0
   dt: 0.004
 
 src:
-  n_shots: 1
   src_per_shot: 1
   lower_left: [0.1, 0.9]
   upper_right: [0.9, 0.1]
+  n_horz: 6 
+  n_deep: 7
+  n_shots: 
+    __call_pre__: ${dep.op} mul
+    args:
+      - ${...n_horz}
+      - ${...n_deep} 
 
 rec:
   n_recs: 100
   first: 0.1
   last: 0.9
   depth: 2
+
+bounds:
+  vp: [1000.0, 5000.0]
+  vs: [500.0, 5000.0]
+  rho: [1000.0, 3000.0]

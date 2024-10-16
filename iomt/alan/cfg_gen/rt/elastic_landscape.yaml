@@ -6,5 +6,3 @@ defaults:
   - src_loc: ${static}
   - rec_loc: ${static}
   - src_amp: ${static}
-
-loader: __import__ @ torch @ load

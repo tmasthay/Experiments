@@ -1,4 +1,4 @@
-__call_vp__: ${..loader}
-args:
-  - ${path}/vp_true.pt
-  - ${device}
+__call_vp__: ${dep.helpers} load_and_scale
+path: ${path}/vp_true.pt
+device: ${device}
+scaling: 1000.0

@@ -1,4 +1,4 @@
-__call_vp__: ${..loader}
-args:
-  - ${path}/rho_true.pt
-  - ${device}
+__call_rho__: ${dep.helpers} load_and_scale
+path: ${path}/rho_true.pt
+device: ${device}
+scaling: 1000.0

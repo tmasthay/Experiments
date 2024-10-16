@@ -1,10 +1,11 @@
 y:
-  __call_src_amp__: __import__ cwd @ helpers @ ricker_sources
+  __call_src_amp__: ${dep.helpers} ricker_sources
   n_srcs: self_src_amp.rt.src_loc.y.shape[0]
-  freq: 25
+  freq: ${solver.pml_freq}
   time_peak_factor: 2.5
   device: self_src_amp.device
   dt: ${grid.dt}
   nt: ${grid.nt}
+  scale: 1.e9
 
 x: self_src_loc.rt.src_amp.y
