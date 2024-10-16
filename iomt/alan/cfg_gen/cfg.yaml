@@ -8,3 +8,6 @@ import_specs:
   delim: "@"
   key: "__import__"
   ignore_spaces: true
+
+use_prev_data: false
+prev_data_dir: null

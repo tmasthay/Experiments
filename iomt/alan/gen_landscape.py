@@ -28,12 +28,26 @@ from mh.core import (
     torch_stats,
     exec_imports,
 )
-from misfit_toys.swiffer import dupe
+from misfit_toys.swiffer import dupe, sco
 from time import time, sleep
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
+from os.path import join as pj
 
 # set_print_options(callback=torch_stats('all'))
 set_print_options(callback=torch_stats(['shape']))
+
+
+def get_last_run_dir():
+    cmd = ' | '.join([
+        """find "$(pwd)" -mindepth 1 -maxdepth 5  -type f -name "__COMPLETE__" -exec stat --format='%y %n' {} +""",
+        'sort',
+        'tail -n 1',
+    ])
+    res1 = sco(cmd, split=False)
+    res2 = res1.split()[-1].replace('/.hydra', '').split("/")[:-1]
+    res = '/'.join(res2)
+    return res
+
 
 def input_with_timeout(prompt, default_val, timeout_time):
     def timeout_handler(signum, frame):
@@ -51,7 +65,8 @@ def input_with_timeout(prompt, default_val, timeout_time):
         return user_input
     except TimeoutError:
         return default_val
-    
+
+
 def dict_diff(d1, d2, *, name1='d1', name2='d2'):
     if isinstance(d1, DotDict):
         d1 = d1.dict()
@@ -86,7 +101,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         import_key=c.import_specs.key,
         ignore_spaces=c.import_specs.ignore_spaces,
     )
-    
+
     # put any derivations of the config here but they cannot rely on the rt variables
     # These should only be of very basic type conversions or other simple operations
     # For example, if you have t0=0, dt=0.1, nt=100, then go ahead and calculate
@@ -143,26 +158,65 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
 
     return c
 
+def read_prev_data(c: DotDict, path: str) -> DotDict:
+    # get all absolute paths to pytorch files in "path"
+    all_files = sco(f'find {path} -type f -name "*.pt"')
+    keys = ['.'.join(f.replace('.pt', '').split('/')[-1].split('___')) for f in all_files]
+    for k, f in zip(keys, all_files):
+        c[k] = torch.load(f)
+    return c
+    
 
 @hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-    try:
-        begin_time = time()
-        c.rt.res = c.main.callback(c)
-        total_time = time() - begin_time
-    except Exception as e:
-        # print(f'Error: {e}')
-        print(f'{c.main=}')
-        raise e
+    
+    if not c.use_prev_data:
+        try:
+            ref_size = (1000, 1000, 1000)
+            ref_time_per_forward_solve = 0.33
+
+            num_forward_solves = c.src.n_horz * c.src.n_deep
+            size_factor = (
+                (c.grid.nx / ref_size[0])
+                * (c.grid.ny / ref_size[1])
+                * (c.grid.nt / ref_size[2])
+            )
+            estimated_time = (
+                ref_time_per_forward_solve * num_forward_solves * size_factor
+            )
+
+            print(f'Estimated time for forward solves: {estimated_time:.2f} seconds')
+
+            if input_with_timeout('Continue? [y/n] y: ', 'y', 3).lower() != 'y':
+                print('Exiting...')
+                return
+            begin_time = time()
+            c.rt.res = c.main.callback(c)
+            total_time = time() - begin_time
+        except Exception as e:
+            # print(f'Error: {e}')
+            print(f'{c.main=}')
+            raise e
+    else:
+        if c.prev_data_dir is None:
+            c.prev_data_dir = get_last_run_dir()
+        print(f'Loading previous data from run at\n    {c.prev_data_dir}')
+        c = read_prev_data(c, path=c.prev_data_dir)
+        
+    # always callback the postprocessing even if we used previous data
     c.postprocess.callback(c, path=hydra_out())
 
     with open('.latest', 'w') as f:
         f.write(f'cd {hydra_out()}')
+        
+    with open(f'{pj(hydra_out(), "__COMPLETE__")}', 'w') as f:
+        f.write('-- RUN FINISHED --\n    This file is simply a placeholder')
 
     print(f'\nRun . .latest to cd to the latest output directory\n')
-    
-    print(f'Run time of main callback: {total_time:.2f} seconds')
+
+    if not c.use_prev_data:
+        print(f'Run time of main callback: {total_time:.2f} seconds')
 
 
 if __name__ == "__main__":

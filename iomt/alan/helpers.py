@@ -9,7 +9,32 @@ from mh.typlotlib import get_frames_bool, save_frames, bool_slice, clean_idx
 from time import time
 import torch.nn.functional as F
 
-
+def easy_imshow(
+    data,
+    *,
+    transpose=False,
+    imshow=None,
+    colorbar=True,
+    xlabel='Offset (m)',
+    ylabel='Depth (m)',
+    title='',
+    extent=None,
+    **kw,
+):
+    imshow = imshow or {}
+    if transpose:
+        data = data.T
+    if extent is not None:
+        imshow['extent'] = extent
+    plt.imshow(data.detach().cpu(), **imshow, **kw)
+    if colorbar:
+        plt.colorbar()
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    plt.title(title)
+    
 def fixed_depth_rec(
     *,
     n_shots: int,
@@ -154,13 +179,17 @@ def load_clamp_vs(
     assert 0.0 < global_scaling
     vs = global_scaling * torch.load(path, map_location=device)
     if vs.shape != vp.shape:
-        vs = F.interpolate(
-            vs[None, None, ...],
-            size=vp.shape[-2:],
-            mode='bilinear',
-            align_corners=True,
-        ).squeeze(0).squeeze(0)
-        
+        vs = (
+            F.interpolate(
+                vs[None, None, ...],
+                size=vp.shape[-2:],
+                mode='bilinear',
+                align_corners=True,
+            )
+            .squeeze(0)
+            .squeeze(0)
+        )
+
     zero_idx = vs == 0.0
     vs[zero_idx] = vp[zero_idx] * rel_vp_scaling
     return vs
@@ -178,7 +207,7 @@ def load_scale_resample(
             mode='bilinear',
             align_corners=True,
         )
-        
+
     return u.squeeze(0).squeeze(0)
 
 
@@ -245,7 +274,7 @@ def elastic_landscape_loop(c):
         idxs = torch.cat([idxs, torch.tensor([c.rt.src_loc.y.shape[0]])])
     slices = [slice(idxs[i], idxs[i + 1]) for i in range(idxs.shape[0] - 1)]
 
-    errors = torch.rand(c.src.n_horz, c.src.n_deep, device=c.device) * 100.0
+    errors = torch.rand(c.src.n_horz * c.src.n_deep, device=c.device) * 100.0
     final_wavefields = torch.zeros(
         c.rt.src_loc.y.shape[0], *c.rt.vp.shape, 2, device=c.device
     )
@@ -273,21 +302,30 @@ def elastic_landscape_loop(c):
             )
         print(msg, flush=True, end='\r')
 
+    start_time = time()
     for i, s in enumerate(slices):
         report_progress(i)
         final_wavefields[s], obs[s] = forward(s)
         errors[s] = loss(ref_data, obs[s]).view(*errors[s].shape)
+    total_forward_solve_time = time() - start_time
+    avg_forward_solve_time = total_forward_solve_time / c.rt.src_loc.y.shape[0]
+    print(
+        f'Total solve time: {total_forward_solve_time:.2f}s\n    avg:'
+        f' {avg_forward_solve_time:.2f}s'
+    )
 
     errors = errors.view(c.src.n_horz, c.src.n_deep)
     final_wavefields = final_wavefields.view(
         c.src.n_horz, c.src.n_deep, *c.rt.vp.shape, 2
     )
-    return final_wavefields, obs, errors
+    return DotDict(
+        {'final_wavefields': final_wavefields, 'obs': obs, 'errors': errors}
+    )
 
 
 def dump_tensors(c: DotDict, *, path):
     def extend_name(name, k):
-        return f'{name}_{k}' if name else k
+        return f'{name}___{k}' if name else k
 
     verbose = c.get('verbose', True)
     q = [(c, '')]
@@ -302,6 +340,17 @@ def dump_tensors(c: DotDict, *, path):
                 torch.save(v.detach().cpu(), full_path)
                 if verbose:
                     print(f'Saved {k} to {full_path}')
+            elif isinstance(v, list) or isinstance(v, tuple):
+                for i, e in enumerate(v):
+                    if isinstance(e, DotDict):
+                        q.append((e, extend_name(name, f'{k}_{i}')))
+                    elif isinstance(e, torch.Tensor):
+                        full_path = pj(
+                            path, extend_name(name, f'{k}_{i}') + '.pt'
+                        )
+                        torch.save(e.detach().cpu(), full_path)
+                        if verbose:
+                            print(f'Saved {k}_{i} to {full_path}')
 
 
 def dump_and_plot_tensors(c: DotDict, *, path):
@@ -315,9 +364,9 @@ def plot_landscape(c: DotDict, *, path):
     assert 'rt' in c
     assert 'res' in c.rt
 
-    wavefields = c.rt.res[0]
-    obs = c.rt.res[1]
-    errors = c.rt.res[2]
+    wavefields = c.rt.res.final_wavefields
+    obs = c.rt.res.obs
+    errors = c.rt.res.errors
 
     src_loc_y = (
         c.rt.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
@@ -327,7 +376,7 @@ def plot_landscape(c: DotDict, *, path):
     )
     errors_flat = errors.view(-1)
 
-    plt.imshow(errors.cpu(), aspect='auto', cmap='seismic')
+    plt.imshow(errors.cpu(), aspect='auto', cmap='gray')
     plt.colorbar()
     plt.savefig(pj(path, 'landscape.png'))
     print(f'Saved landscape to {pj(path, "landscape.png")}')
@@ -345,16 +394,35 @@ def plot_landscape(c: DotDict, *, path):
             for k, v in tmp.items():
                 print(f'{k}: {v}\n')
             raise e
+
+        clip_factor = 0.2
+        min0 = (1 + clip_factor) * data[..., 0].min()
+        max0 = (1 - clip_factor) * data[..., 0].max()
+        min1 = (1 + clip_factor) * data[..., 1].min()
+        max1 = (1 - clip_factor) * data[..., 1].max()
+
         plt.clf()
         plt.subplot(2, 1, 1)
         plt.scatter([yx], [yy], c='r', s=100, marker='*')
-        plt.imshow(data[idx][..., 0].cpu().T, aspect='auto', cmap='seismic')
+        plt.imshow(
+            data[idx][..., 0].cpu().T,
+            aspect='auto',
+            cmap='gray',
+            vmin=min0,
+            vmax=max0,
+        )
         plt.colorbar()
         plt.title(f'Y component of wavefield\n{clean_idx(idx[:2])}')
 
         plt.subplot(2, 1, 2)
         plt.scatter([xx], [xy], c='r', s=100, marker='*')
-        plt.imshow(data[idx][..., 1].cpu().T, aspect='auto', cmap='seismic')
+        plt.imshow(
+            data[idx][..., 1].cpu().T,
+            aspect='auto',
+            cmap='gray',
+            vmin=min1,
+            vmax=max1,
+        )
         plt.colorbar()
         plt.title(f'X component of wavefield\n{clean_idx(idx[:2])}')
 
@@ -405,28 +473,26 @@ def plot_landscape(c: DotDict, *, path):
     )
     save_frames(frames, path=pj(path, 'obs'))
     print(f'\nSaved obs_data to {pj(path, "obs.gif")}\n')
-    
+
     plt.clf()
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    
+
     plt.suptitle("Elastic seismic medium")
-    
+
     plt.subplot(1, 3, 1)
-    plt.imshow(c.rt.vp.cpu().T, aspect='auto', cmap='seismic')
+    plt.imshow(c.rt.vp.cpu().T, aspect='auto', cmap='gray')
     plt.colorbar()
     plt.title("Vp")
 
     plt.subplot(1, 3, 2)
-    plt.imshow(c.rt.vs.cpu().T, aspect='auto', cmap='seismic')
+    plt.imshow(c.rt.vs.cpu().T, aspect='auto', cmap='gray')
     plt.colorbar()
     plt.title("Vs")
-    
+
     plt.subplot(1, 3, 3)
-    plt.imshow(c.rt.rho.cpu().T, aspect='auto', cmap='seismic')
+    plt.imshow(c.rt.rho.cpu().T, aspect='auto', cmap='gray')
     plt.colorbar()
     plt.title("Rho")
-    
+
     plt.savefig(pj(path, 'medium.png'))
     print(f'Saved vp,vs,rho to {pj(path, "medium.png")}')
-    
-    
