@@ -1,11 +1,11 @@
 callback: ${dep.helpers} dump_and_plot_tensors
 plt:
   def_imshow: &def_imshow
-    cmap: 'gray'
-    aspect: 'auto'
+    cmap: seismic
+    aspect: auto
 
   errors:
     imshow:
       <<: *def_imshow
-    title: 'Errors'
+    title: Errors
     clip: 0.2
