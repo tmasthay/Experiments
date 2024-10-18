@@ -5,9 +5,33 @@ import deepwave as dw
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
 from mh.core import DotDict
 from os.path import join as pj
-from mh.typlotlib import get_frames_bool, save_frames, bool_slice, clean_idx
+from mh.typlotlib import (  # noqa: F401
+    get_frames_bool,
+    save_frames,
+    bool_slice,
+    clean_idx,  # noqa: F401
+)  # noqa: F401
 from time import time
 import torch.nn.functional as F
+
+
+def frames_to_strides(*shape, none_dims=None, max_frames):
+    none_dims = none_dims or []
+    assert len(none_dims) == len(
+        set(none_dims)
+    ), f'Duplicates found in {none_dims=}'
+    for i, dim in enumerate(none_dims):
+        if dim < 0:
+            none_dims[i] = len(shape) + dim
+    n_active_dims = len(shape) - len(none_dims)
+    frames_per_dim = int(max_frames ** (1 / n_active_dims))
+    strides = [1 for e in shape]
+    if frames_per_dim <= 1:
+        return strides
+    for i, dim in enumerate(shape):
+        if i not in none_dims:
+            strides[i] = dim // frames_per_dim
+    return strides
 
 
 def easy_imshow(
@@ -31,7 +55,7 @@ def easy_imshow(
     if extent is not None:
         imshow['extent'] = extent
 
-    if bound_data is None: 
+    if bound_data is None:
         bound_data = data
     vmin, vmax = bound_data.min(), bound_data.max()
     imshow['vmin'] = vmin + clip * abs(vmin)
@@ -392,104 +416,103 @@ def plot_landscape(c: DotDict, *, path):
     src_loc_x = (
         c.rt.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
     )
-    errors_flat = errors.view(-1)
+    # errors_flat = errors.view(-1)
 
     easy_imshow(
         errors.cpu(),
         path=pj(path, opts.errors.other.filename),
         **opts.errors.filter(exclude=['other']),
     )
+    plt.clf()
+
+    def toggle_subplot(i):
+        plt.subplot(*subp_med.shape, subp_med.order[i - 1])
+
+    subp_med = opts.medium.subplot
+    fig, axes = plt.subplots(*subp_med.shape, **subp_med.kw)
+    plt.suptitle(subp_med.suptitle)
+
+    toggle_subplot(1)
+    easy_imshow(c.rt.vp.cpu().T, **opts.medium.vp.imshow)
+
+    toggle_subplot(2)
+    easy_imshow(c.rt.vs.cpu().T, **opts.medium.vs.imshow)
+
+    toggle_subplot(3)
+    easy_imshow(c.rt.rho.cpu().T, **opts.medium.rho.imshow)
+
+    filename = f'{pj(path, opts.medium.filename)}.png'
+    plt.savefig(filename)
+    print(f'Saved vp,vs,rho to {filename}')
 
     def plotter(*, data, idx, fig, axes):
         yx, yy = src_loc_y[idx[0], idx[1]].tolist()
         xx, xy = src_loc_x[idx[0], idx[1]].tolist()
-        
-        if 'other' in opts.wavefields.y and opts.wavefields.y.other.get('static', False):  
+
+        subp_wave = opts.wavefields.subplot
+        if 'other' in opts.wavefields.y and opts.wavefields.y.other.get(
+            'static', False
+        ):
             opts.wavefields.y.bound_data = data[..., 0]
             opts.wavefields.x.bound_data = data[..., 1]
 
         plt.clf()
-        plt.subplot(2, 1, 1)
+        plt.subplot(*subp_wave.shape, subp_wave.order[0])
         plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
         easy_imshow(
-            data[idx][..., 0].cpu().T,
-            **opts.wavefields.y.filter(['other']),
+            data[idx][..., 0].cpu().T, **opts.wavefields.y.filter(['other'])
         )
 
-        plt.subplot(2, 1, 2)
+        plt.subplot(*subp_wave.shape, subp_wave.order[1])
         plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
         easy_imshow(
-            data[idx][..., 1].cpu().T,
-            **opts.wavefields.x.filter(['other']),
+            data[idx][..., 1].cpu().T, **opts.wavefields.x.filter(['other'])
         )
 
-    fig, axes = plt.subplots(2, 1, figsize=(10, 10))
-    iter = bool_slice(*wavefields.shape, none_dims=[-3, -2, -1])
-    frames = get_frames_bool(
-        data=wavefields, iter=iter, plotter=plotter, fig=fig, axes=axes
-    )
-    save_frames(frames, path=pj(path, 'wavefields'))
-    print(f'\nSaved wavefields to {pj(path, "wavefields.gif")}\n')
+    subp_wave = opts.wavefields.subplot
+    fopts_wave = opts.wavefields.frames
+    fig, axes = plt.subplots(*subp_wave.shape, **subp_wave.kw)
 
-    opts = {'cmap': 'seismic', 'aspect': 'auto'}
-    static = True
-    if static:
-        opts1 = {
-            **opts,
-            **{'vmin': obs[..., 0].min(), 'vmax': obs[..., 0].max()},
-        }
-        opts2 = {
-            **opts,
-            **{'vmin': obs[..., 1].min(), 'vmax': obs[..., 1].max()},
-        }
-    else:
-        opts1 = opts2 = opts
+    strides = frames_to_strides(
+        *wavefields.shape,
+        none_dims=fopts_wave.iter.none_dims,
+        max_frames=fopts_wave.max_frames,
+    )
+    iter_wave = bool_slice(
+        *wavefields.shape, **fopts_wave.iter, strides=strides
+    )
+    frames = get_frames_bool(
+        data=wavefields, iter=iter_wave, plotter=plotter, fig=fig, axes=axes
+    )
+    filename = pj(path, opts.wavefields.filename)
+    save_frames(frames, path=filename)
+    print(f'\nSaved wavefields to {pj(path, f"{filename}.gif")}\n')
 
     def plotter_obs(*, data, idx, fig, axes):
+        subp_obs = opts.obs.subplot
+        if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
+            opts.obs.y.bound_data = data[..., 0]
+            opts.obs.x.bound_data = data[..., 1]
+
         plt.clf()
-        plt.subplot(2, 1, 1)
-        plt.imshow(data[idx][..., 0].cpu().T, **opts1)
-        plt.colorbar()
-        plt.title(
-            'Y component of observed'
-            f' data\n{clean_idx(idx[:2])}\n{errors_flat[idx[0]]=}'
-        )
+        plt.subplot(*subp_obs.shape, subp_obs.order[0])
+        easy_imshow(data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other']))
 
-        plt.subplot(2, 1, 2)
-        plt.imshow(data[idx][..., 1].cpu().T, **opts2)
-        plt.colorbar()
-        plt.title(
-            'X component of observed'
-            f' data\n{clean_idx(idx[:2])}\n{errors_flat[idx[0]]}'
-        )
+        plt.subplot(*subp_obs.shape, subp_obs.order[1])
+        easy_imshow(data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other']))
 
-    fig, axes = plt.subplots(2, 1, figsize=(10, 10))
-    iter = bool_slice(*obs.shape, none_dims=[-3, -2, -1])
-    frames = get_frames_bool(
-        data=obs, iter=iter, plotter=plotter_obs, fig=fig, axes=axes
+    subp_obs = opts.obs.subplot
+    fopts_obs = opts.obs.frames
+    fig, axes = plt.subplots(*subp_obs.shape, **subp_obs.kw)
+    strides = frames_to_strides(
+        *obs.shape,
+        none_dims=fopts_obs.iter.none_dims,
+        max_frames=fopts_obs.max_frames,
     )
-    save_frames(frames, path=pj(path, 'obs'))
-    print(f'\nSaved obs_data to {pj(path, "obs.gif")}\n')
-
-    plt.clf()
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-    plt.suptitle("Elastic seismic medium")
-
-    plt.subplot(1, 3, 1)
-    plt.imshow(c.rt.vp.cpu().T, aspect='auto', cmap='gray')
-    plt.colorbar()
-    plt.title("Vp")
-
-    plt.subplot(1, 3, 2)
-    plt.imshow(c.rt.vs.cpu().T, aspect='auto', cmap='gray')
-    plt.colorbar()
-    plt.title("Vs")
-
-    plt.subplot(1, 3, 3)
-    plt.imshow(c.rt.rho.cpu().T, aspect='auto', cmap='gray')
-    plt.colorbar()
-    plt.title("Rho")
-
-    plt.savefig(pj(path, 'medium.png'))
-    print(f'Saved vp,vs,rho to {pj(path, "medium.png")}')
+    iter_obs = bool_slice(*obs.shape, **fopts_obs.iter, strides=strides)
+    frames = get_frames_bool(
+        data=obs, iter=iter_obs, plotter=plotter_obs, fig=fig, axes=axes
+    )
+    filename_obs = pj(path, opts.obs.filename)
+    save_frames(frames, path=filename_obs)
+    print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')

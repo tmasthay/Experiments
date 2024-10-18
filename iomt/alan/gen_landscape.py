@@ -233,7 +233,13 @@ def main(cfg: DictConfig):
                 f' {estimated_time:.2f} seconds'
             )
 
-            if input_with_timeout('Continue? [y/n] y: ', 'y', 3).lower() != 'y':
+            # five minute cutoff before we actually query. Else just run.
+            cutoff = 300
+            if (
+                estimated_time > cutoff
+                and input_with_timeout('Continue? [y/n] y: ', 'y', 3).lower()
+                != 'y'
+            ):
                 print('Exiting...')
                 return
             begin_time = time()
