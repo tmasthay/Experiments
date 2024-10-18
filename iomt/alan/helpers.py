@@ -1,3 +1,4 @@
+import traceback
 from typing import List
 from matplotlib import pyplot as plt
 import torch
@@ -282,24 +283,39 @@ def easy_elastic(
 
 def elastic_landscape_loop(c):
     def forward(s):
+        # vp,vs,rho technically
+        #     should be moved only once
+        #     but not worth refactoring right now
+        # would just require changing device: ${device} to device: ${gpu}
+        # in the config file
+        vp = c.rt.vp.to(c.gpu)
+        vs = c.rt.vs.to(c.gpu)
+        rho = c.rt.rho.to(c.gpu)
+        src_amp_y = c.rt.src_amp.y[s].to(c.gpu)
+        src_amp_x = c.rt.src_amp.x[s].to(c.gpu)
+        src_loc_y = c.rt.src_loc.y[s].to(c.gpu)
+        src_loc_x = c.rt.src_loc.x[s].to(c.gpu)
+        rec_loc_y = c.rt.rec_loc.y[s].to(c.gpu)
+        rec_loc_x = c.rt.rec_loc.x[s].to(c.gpu)
         u = easy_elastic(
-            vp=c.rt.vp,
-            vs=c.rt.vs,
-            rho=c.rt.rho,
+            vp=vp,
+            vs=vs,
+            rho=rho,
             grid_spacing=[c.grid.dy, c.grid.dx],
             dt=c.grid.dt,
-            source_amplitudes_y=c.rt.src_amp.y[s],
-            source_locations_y=c.rt.src_loc.y[s],
-            source_amplitudes_x=c.rt.src_amp.x[s],
-            source_locations_x=c.rt.src_loc.x[s],
-            receiver_locations_x=c.rt.rec_loc.x[s],
-            receiver_locations_y=c.rt.rec_loc.y[s],
+            source_amplitudes_y=src_amp_y,
+            source_locations_y=src_loc_y,
+            source_amplitudes_x=src_amp_x,
+            source_locations_x=src_loc_x,
+            receiver_locations_x=rec_loc_x,
+            receiver_locations_y=rec_loc_y,
             **c.solver,
         )
         wavefield = torch.stack(u[:2], dim=-1)
         w = c.solver.get('pml_width', 20)
-        wavefield = wavefield[:, w:-w, w:-w, :]
-        return wavefield, torch.stack(u[-2:], dim=-1)
+        wavefield = wavefield[:, w:-w, w:-w, :].to(c.device)
+        final_obs = torch.stack(u[-2:], dim=-1).to(c.device)
+        return wavefield, final_obs
 
     def loss(a, b):
         tmp = a.repeat(b.shape[0], 1, 1, 1)
@@ -364,6 +380,15 @@ def elastic_landscape_loop(c):
 
 
 def dump_tensors(c: DotDict, *, path):
+    rt_errors_list = []
+    def add_err(e, msg):
+        stars = 80 * '*'
+        rt_errors_list.append(stars)
+        rt_errors_list.append(msg)
+        rt_errors_list.append(e)
+        rt_errors_list.append(stars)
+        rt_errors_list.append('\n\n')
+        
     def extend_name(name, k):
         return f'{name}___{k}' if name else k
 
@@ -377,7 +402,10 @@ def dump_tensors(c: DotDict, *, path):
                 q.append((v, extend_name(name, k)))
             elif isinstance(v, torch.Tensor):
                 full_path = pj(path, extend_name(name, k) + '.pt')
-                torch.save(v.detach().cpu(), full_path)
+                try:
+                    torch.save(v.detach().cpu(), full_path)
+                except:
+                    add_err(f'Error saving {k} to {full_path}', traceback.format_exc())
                 if verbose:
                     print(f'Saved {k} to {full_path}')
             elif isinstance(v, list) or isinstance(v, tuple):
@@ -391,13 +419,35 @@ def dump_tensors(c: DotDict, *, path):
                         torch.save(e.detach().cpu(), full_path)
                         if verbose:
                             print(f'Saved {k}_{i} to {full_path}')
+    
+    return '\n'.join(rt_errors_list)
 
 
 def dump_and_plot_tensors(c: DotDict, *, path):
     assert 'plt' in c.postprocess
 
-    dump_tensors(c, path=path)
-    plot_landscape(c, path=path)
+    tensor_errors = dump_tensors(c, path=path)
+    plot_errors = plot_landscape(c, path=path)
+    
+    if tensor_errors and plot_errors:
+        final_msg = f'BOTH tensor AND plot errors:\n\n{tensor_errors}\n\n{plot_errors}'
+    elif tensor_errors:
+        final_msg = f'Tensor errors:\n\n{tensor_errors}'
+    elif plot_errors:
+        final_msg = f'Plot errors:\n\n{plot_errors}'
+    else:
+        final_msg = ''
+    
+    if final_msg:
+        raise RuntimeError(final_msg)
+    
+def plot_tensors(c: DotDict, *, path):
+    assert 'plt' in c.postprocess
+    
+    plot_errors = plot_landscape(c, path=path)
+
+    if plot_errors:
+        raise RuntimeError(f'Plot errors:\n\n{plot_errors}')
 
 
 def plot_landscape(c: DotDict, *, path):
@@ -418,101 +468,138 @@ def plot_landscape(c: DotDict, *, path):
     )
     # errors_flat = errors.view(-1)
 
-    easy_imshow(
-        errors.cpu(),
-        path=pj(path, opts.errors.other.filename),
-        **opts.errors.filter(exclude=['other']),
-    )
-    plt.clf()
+    def plot_errors():
+        easy_imshow(
+            errors.cpu(),
+            path=pj(path, opts.errors.other.filename),
+            **opts.errors.filter(exclude=['other']),
+        )
+        plt.clf()
 
-    def toggle_subplot(i):
-        plt.subplot(*subp_med.shape, subp_med.order[i - 1])
+    def plot_medium():
+        def toggle_subplot(i):
+            plt.subplot(*subp_med.shape, subp_med.order[i - 1])
 
-    subp_med = opts.medium.subplot
-    fig, axes = plt.subplots(*subp_med.shape, **subp_med.kw)
-    plt.suptitle(subp_med.suptitle)
+        subp_med = opts.medium.subplot
+        fig, axes = plt.subplots(*subp_med.shape, **subp_med.kw)
+        plt.suptitle(subp_med.suptitle)
 
-    toggle_subplot(1)
-    easy_imshow(c.rt.vp.cpu().T, **opts.medium.vp.imshow)
+        toggle_subplot(1)
+        easy_imshow(c.rt.vp.cpu().T, **opts.medium.vp.imshow)
 
-    toggle_subplot(2)
-    easy_imshow(c.rt.vs.cpu().T, **opts.medium.vs.imshow)
+        toggle_subplot(2)
+        easy_imshow(c.rt.vs.cpu().T, **opts.medium.vs.imshow)
 
-    toggle_subplot(3)
-    easy_imshow(c.rt.rho.cpu().T, **opts.medium.rho.imshow)
+        toggle_subplot(3)
+        easy_imshow(c.rt.rho.cpu().T, **opts.medium.rho.imshow)
 
-    filename = f'{pj(path, opts.medium.filename)}.png'
-    plt.savefig(filename)
-    print(f'Saved vp,vs,rho to {filename}')
+        filename = f'{pj(path, opts.medium.filename)}.png'
+        plt.savefig(filename)
+        print(f'Saved vp,vs,rho to {filename}')
 
-    def plotter(*, data, idx, fig, axes):
-        yx, yy = src_loc_y[idx[0], idx[1]].tolist()
-        xx, xy = src_loc_x[idx[0], idx[1]].tolist()
+    def plot_wavefields():
+        def plotter(*, data, idx, fig, axes):
+            yx, yy = src_loc_y[idx[0], idx[1]].tolist()
+            xx, xy = src_loc_x[idx[0], idx[1]].tolist()
+
+            subp_wave = opts.wavefields.subplot
+            if 'other' in opts.wavefields.y and opts.wavefields.y.other.get(
+                'static', False
+            ):
+                opts.wavefields.y.bound_data = data[..., 0]
+                opts.wavefields.x.bound_data = data[..., 1]
+
+            plt.clf()
+            plt.subplot(*subp_wave.shape, subp_wave.order[0])
+            plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
+            easy_imshow(
+                data[idx][..., 0].cpu().T, **opts.wavefields.y.filter(['other'])
+            )
+
+            plt.subplot(*subp_wave.shape, subp_wave.order[1])
+            plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
+            easy_imshow(
+                data[idx][..., 1].cpu().T, **opts.wavefields.x.filter(['other'])
+            )
 
         subp_wave = opts.wavefields.subplot
-        if 'other' in opts.wavefields.y and opts.wavefields.y.other.get(
-            'static', False
-        ):
-            opts.wavefields.y.bound_data = data[..., 0]
-            opts.wavefields.x.bound_data = data[..., 1]
+        fopts_wave = opts.wavefields.frames
+        fig, axes = plt.subplots(*subp_wave.shape, **subp_wave.kw)
 
-        plt.clf()
-        plt.subplot(*subp_wave.shape, subp_wave.order[0])
-        plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
-        easy_imshow(
-            data[idx][..., 0].cpu().T, **opts.wavefields.y.filter(['other'])
+        strides = frames_to_strides(
+            *wavefields.shape,
+            none_dims=fopts_wave.iter.none_dims,
+            max_frames=fopts_wave.max_frames,
         )
-
-        plt.subplot(*subp_wave.shape, subp_wave.order[1])
-        plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
-        easy_imshow(
-            data[idx][..., 1].cpu().T, **opts.wavefields.x.filter(['other'])
+        iter_wave = bool_slice(
+            *wavefields.shape, **fopts_wave.iter, strides=strides
         )
+        frames = get_frames_bool(
+            data=wavefields, iter=iter_wave, plotter=plotter, fig=fig, axes=axes
+        )
+        filename = pj(path, opts.wavefields.filename)
+        save_frames(frames, path=filename)
+        print(f'\nSaved wavefields to {pj(path, f"{filename}.gif")}\n')
 
-    subp_wave = opts.wavefields.subplot
-    fopts_wave = opts.wavefields.frames
-    fig, axes = plt.subplots(*subp_wave.shape, **subp_wave.kw)
+    def plot_obs():
+        def plotter_obs(*, data, idx, fig, axes):
+            subp_obs = opts.obs.subplot
+            if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
+                opts.obs.y.bound_data = data[..., 0]
+                opts.obs.x.bound_data = data[..., 1]
 
-    strides = frames_to_strides(
-        *wavefields.shape,
-        none_dims=fopts_wave.iter.none_dims,
-        max_frames=fopts_wave.max_frames,
-    )
-    iter_wave = bool_slice(
-        *wavefields.shape, **fopts_wave.iter, strides=strides
-    )
-    frames = get_frames_bool(
-        data=wavefields, iter=iter_wave, plotter=plotter, fig=fig, axes=axes
-    )
-    filename = pj(path, opts.wavefields.filename)
-    save_frames(frames, path=filename)
-    print(f'\nSaved wavefields to {pj(path, f"{filename}.gif")}\n')
+            plt.clf()
+            plt.subplot(*subp_obs.shape, subp_obs.order[0])
+            easy_imshow(data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other']))
 
-    def plotter_obs(*, data, idx, fig, axes):
+            plt.subplot(*subp_obs.shape, subp_obs.order[1])
+            easy_imshow(data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other']))
+
         subp_obs = opts.obs.subplot
-        if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
-            opts.obs.y.bound_data = data[..., 0]
-            opts.obs.x.bound_data = data[..., 1]
-
-        plt.clf()
-        plt.subplot(*subp_obs.shape, subp_obs.order[0])
-        easy_imshow(data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other']))
-
-        plt.subplot(*subp_obs.shape, subp_obs.order[1])
-        easy_imshow(data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other']))
-
-    subp_obs = opts.obs.subplot
-    fopts_obs = opts.obs.frames
-    fig, axes = plt.subplots(*subp_obs.shape, **subp_obs.kw)
-    strides = frames_to_strides(
-        *obs.shape,
-        none_dims=fopts_obs.iter.none_dims,
-        max_frames=fopts_obs.max_frames,
-    )
-    iter_obs = bool_slice(*obs.shape, **fopts_obs.iter, strides=strides)
-    frames = get_frames_bool(
-        data=obs, iter=iter_obs, plotter=plotter_obs, fig=fig, axes=axes
-    )
-    filename_obs = pj(path, opts.obs.filename)
-    save_frames(frames, path=filename_obs)
-    print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
+        fopts_obs = opts.obs.frames
+        fig, axes = plt.subplots(*subp_obs.shape, **subp_obs.kw)
+        strides = frames_to_strides(
+            *obs.shape,
+            none_dims=fopts_obs.iter.none_dims,
+            max_frames=fopts_obs.max_frames,
+        )
+        iter_obs = bool_slice(*obs.shape, **fopts_obs.iter, strides=strides)
+        frames = get_frames_bool(
+            data=obs, iter=iter_obs, plotter=plotter_obs, fig=fig, axes=axes
+        )
+        filename_obs = pj(path, opts.obs.filename)
+        save_frames(frames, path=filename_obs)
+        print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
+    
+    rt_error_list = []
+    def add_err(e, msg):
+        stars = 80 * '*'
+        rt_error_list.append(stars)
+        rt_error_list.append(msg)
+        rt_error_list.append(e)
+        rt_error_list.append(stars)
+        rt_error_list.append('\n\n')
+        
+    try:
+        plot_errors()
+    except:
+        add_err('Error plotting errors', traceback.format_exc())
+    
+    try:
+        plot_medium()
+    except:
+        add_err('Error plotting medium', traceback.format_exc())
+        
+    try:
+        plot_wavefields()
+    except:
+        add_err('Error plotting wavefields', traceback.format_exc())
+    
+    try:
+        plot_obs()
+    except:
+        add_err('Error plotting obs', traceback.format_exc())
+    
+    return '\n'.join(rt_error_list)
+    
+    

@@ -1,0 +1,8 @@
+__call_vs__: ${dep.torch} mul
+other: 1000.0
+input: 
+  __call_vs__: ${dep.torch} ones
+  args: 
+    - ${grid.ny}
+    - ${grid.nx}
+  device: ${device}

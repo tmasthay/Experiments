@@ -2,5 +2,6 @@ defaults:
 - _self_
 - plt: elastic_landscape
 
-callback: ${dep.helpers} dump_and_plot_tensors
+# callback: ${dep.helpers} dump_and_plot_tensors
+callback: ${dep.helpers} plot_tensors
 

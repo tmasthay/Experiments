@@ -1,0 +1,8 @@
+__call_rho__: ${dep.torch} mul
+other: 1500.0
+input: 
+  __call_rho__: ${dep.torch} ones
+  args: 
+    - ${grid.ny}
+    - ${grid.nx}
+  device: ${device}

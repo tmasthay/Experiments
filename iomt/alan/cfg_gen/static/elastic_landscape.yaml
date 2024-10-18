@@ -14,7 +14,8 @@ dep:
   types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
   
 
-device: cuda:1
+device: cpu
+gpu: cuda:1
 path: ${oc.env:CONDA_PREFIX}/data/marm2/smooth
 batch_size: 40
 
