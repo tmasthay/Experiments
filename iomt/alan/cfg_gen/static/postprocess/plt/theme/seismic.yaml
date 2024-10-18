@@ -1,0 +1,11 @@
+imshow:
+  seismic:
+    cmap: seismic
+    aspect: auto
+
+marker:
+  red_star:
+    c: r
+    s: 100
+    marker: "*"
+

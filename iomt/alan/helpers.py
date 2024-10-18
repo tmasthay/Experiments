@@ -22,6 +22,7 @@ def easy_imshow(
     extent=None,
     bound_data=None,
     clip=1.0,
+    path=None,
     **kw,
 ):
     imshow = imshow or {}
@@ -30,7 +31,8 @@ def easy_imshow(
     if extent is not None:
         imshow['extent'] = extent
 
-    bound_data = bound_data or data
+    if bound_data is None: 
+        bound_data = data
     vmin, vmax = bound_data.min(), bound_data.max()
     imshow['vmin'] = vmin + clip * abs(vmin)
     imshow['vmax'] = vmax - clip * abs(vmax)
@@ -43,6 +45,10 @@ def easy_imshow(
     if ylabel:
         plt.ylabel(ylabel)
     plt.title(title)
+
+    if path is not None:
+        plt.savefig(path)
+        print(f'Saved to {path}')
 
 
 def fixed_depth_rec(
@@ -388,55 +394,34 @@ def plot_landscape(c: DotDict, *, path):
     )
     errors_flat = errors.view(-1)
 
-    # plt.imshow(errors.cpu(), aspect='auto', cmap='gray')
-    easy_imshow(errors.cpu(), **opts.errors)
-    plt.savefig(pj(path, 'landscape.png'))
-    print(f'Saved landscape to {pj(path, "landscape.png")}')
+    easy_imshow(
+        errors.cpu(),
+        path=pj(path, opts.errors.other.filename),
+        **opts.errors.filter(exclude=['other']),
+    )
 
     def plotter(*, data, idx, fig, axes):
-        try:
-            yx, yy = src_loc_y[idx[0], idx[1]].tolist()
-            xx, xy = src_loc_x[idx[0], idx[1]].tolist()
-        except Exception as e:
-            tmp = {
-                'idx': clean_idx(idx),
-                'yshape': src_loc_y.shape,
-                'xshape': src_loc_x.shape,
-            }
-            for k, v in tmp.items():
-                print(f'{k}: {v}\n')
-            raise e
-
-        clip_factor = 0.2
-        min0 = (1 + clip_factor) * data[..., 0].min()
-        max0 = (1 - clip_factor) * data[..., 0].max()
-        min1 = (1 + clip_factor) * data[..., 1].min()
-        max1 = (1 - clip_factor) * data[..., 1].max()
+        yx, yy = src_loc_y[idx[0], idx[1]].tolist()
+        xx, xy = src_loc_x[idx[0], idx[1]].tolist()
+        
+        if 'other' in opts.wavefields.y and opts.wavefields.y.other.get('static', False):  
+            opts.wavefields.y.bound_data = data[..., 0]
+            opts.wavefields.x.bound_data = data[..., 1]
 
         plt.clf()
         plt.subplot(2, 1, 1)
-        plt.scatter([yx], [yy], c='r', s=100, marker='*')
-        plt.imshow(
+        plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
+        easy_imshow(
             data[idx][..., 0].cpu().T,
-            aspect='auto',
-            cmap='gray',
-            vmin=min0,
-            vmax=max0,
+            **opts.wavefields.y.filter(['other']),
         )
-        plt.colorbar()
-        plt.title(f'Y component of wavefield\n{clean_idx(idx[:2])}')
 
         plt.subplot(2, 1, 2)
-        plt.scatter([xx], [xy], c='r', s=100, marker='*')
-        plt.imshow(
+        plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
+        easy_imshow(
             data[idx][..., 1].cpu().T,
-            aspect='auto',
-            cmap='gray',
-            vmin=min1,
-            vmax=max1,
+            **opts.wavefields.x.filter(['other']),
         )
-        plt.colorbar()
-        plt.title(f'X component of wavefield\n{clean_idx(idx[:2])}')
 
     fig, axes = plt.subplots(2, 1, figsize=(10, 10))
     iter = bool_slice(*wavefields.shape, none_dims=[-3, -2, -1])

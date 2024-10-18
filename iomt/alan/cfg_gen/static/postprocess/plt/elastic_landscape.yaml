@@ -1,0 +1,28 @@
+defaults:
+- theme: seismic
+- _self_
+
+errors:
+  imshow: ${..theme.imshow.seismic}
+  title: Errors
+  clip: 0.4
+  other:
+    filename: landscape.png
+
+
+wavefields:
+  base_wavefields: &base_wave
+    imshow: ${...theme.imshow.seismic}
+    clip: 0.4
+    other:
+      filename: wavefields
+      marker: ${....theme.marker.red_star}
+      static: true 
+  y: 
+    <<: *base_wave
+    title: Wavefield Y component
+  
+  x: 
+    <<: *base_wave
+    title: Wavefield X component
+

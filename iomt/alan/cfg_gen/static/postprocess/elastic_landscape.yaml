@@ -1,11 +1,6 @@
-callback: ${dep.helpers} dump_and_plot_tensors
-plt:
-  def_imshow: &def_imshow
-    cmap: seismic
-    aspect: auto
+defaults:
+- _self_
+- plt: elastic_landscape
 
-  errors:
-    imshow:
-      <<: *def_imshow
-    title: Errors
-    clip: 0.2
+callback: ${dep.helpers} dump_and_plot_tensors
+
