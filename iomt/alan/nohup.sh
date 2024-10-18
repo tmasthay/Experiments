@@ -12,10 +12,8 @@ hydra_args=(
     "src.n_deep=21"
     "gpu=cuda:1"
     "batch_size=250"
-    "src.lower_left[0]=0.4"
-    "src.lower_left[1]=0.6"
-    "src.upper_right[0]=0.6"
-    "src.upper_right[1]=0.4"
+    "src.lower_left=[0.4,0.6]"
+    "src.upper_right=[0.6,0.4]"
 )
 
 # Run the command with nohup and capture the PID
