@@ -19,7 +19,7 @@ hydra_args=(
 )
 
 # Run the command with nohup and capture the PID
-nohup python "${python_args[@]}" "${hydra_args[@]}" >nohup.out 2>&1 &
+nohup python "${python_args[@]}" "${hydra_args[@]}" 2>&1 | tee nohup.out &
 
 # Capture the PID of the background process
 pid=$!
