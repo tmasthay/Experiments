@@ -192,7 +192,7 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
 
     # Assert that the vp/vs ratio is within bounds
-    assert not (c.rt.vp < c.rt.vs).any()
+    assert not (c.rt.vp < torch.sqrt(torch.tensor(2.0)) * c.rt.vs).any()
 
     return c
 
