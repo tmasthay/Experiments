@@ -45,7 +45,7 @@ def easy_imshow(
     title='',
     extent=None,
     bound_data=None,
-    clip=1.0,
+    clip=0.0,
     path=None,
     **kw,
 ):

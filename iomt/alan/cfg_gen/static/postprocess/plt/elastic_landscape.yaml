@@ -1,11 +1,11 @@
 defaults:
-  - theme: seismic
   - _self_
+  - theme: tab_redstar
 
-clip: 0.2
+clip: 0.05
 
 errors:
-  imshow: ${..theme.imshow.seismic}
+  imshow: ${..theme.imshow}
   title: Errors
   clip: ${..clip}
   other:
@@ -15,10 +15,10 @@ errors:
 wavefields:
   filename: wavefields
   base_wavefields: &base_wave
-    imshow: ${...theme.imshow.seismic}
+    imshow: ${...theme.imshow}
     clip: ${...clip}
     other:
-      marker: ${....theme.marker.red_star}
+      marker: ${....theme.marker}
       static: true
 
   subplot:
@@ -44,7 +44,7 @@ obs:
   filename: obs
 
   base_obs: &base_obs
-    imshow: ${...theme.imshow.seismic}
+    imshow: ${...theme.imshow}
     clip: ${...clip}
     other:
       static: true
@@ -78,7 +78,7 @@ medium:
     suptitle: Elastic Medium
 
   base_medium: &base_medium
-    imshow: ${...theme.imshow.seismic}
+    imshow: ${...theme.imshow}
     clip: ${...clip}
 
   vp:

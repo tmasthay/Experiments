@@ -2,8 +2,8 @@
 
 defaults:
   - _self_
-  - main: ${static}
-  - postprocess: ${static}
+  - main: elastic_landscape
+  - postprocess: elastic_landscape
 
 dep:
   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
