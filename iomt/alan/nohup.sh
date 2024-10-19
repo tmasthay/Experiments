@@ -8,16 +8,20 @@ hydra_args=(
     "grid.ny=500"
     "grid.nx=500"
     "grid.nt=4000"
-    "src.n_horz=21"
-    "src.n_deep=21"
-    "gpu=cuda:1"
+    "src.n_horz=51"
+    "src.n_deep=51"
+    "gpu='cuda:0'"
     "batch_size=250"
     "src.lower_left=[0.4,0.6]"
     "src.upper_right=[0.6,0.4]"
+    "dupe=true"
+    "editor=null"
 )
 
 # Run the command with nohup and capture the PID
-nohup python "${python_args[@]}" "${hydra_args[@]}" 2>&1 | tee nohup.out &
+# nohup python "${python_args[@]}" "${hydra_args[@]}" 2>&1 | tee nohup.out &
+
+nohup python "${python_args[@]}" "${hydra_args[@]}" &
 
 # Capture the PID of the background process
 pid=$!

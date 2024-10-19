@@ -211,6 +211,9 @@ def read_prev_data(c: DotDict, path: str) -> DotDict:
 
 @hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
 def main(cfg: DictConfig):
+    if cfg.get('dupe', True):
+        dupe(hydra_out('stream'), editor=cfg.get('editor', None))
+
     c = preprocess_cfg(cfg)
 
     if not c.use_prev_data:
@@ -236,7 +239,8 @@ def main(cfg: DictConfig):
             # five minute cutoff before we actually query. Else just run.
             cutoff = 300
             if (
-                estimated_time > cutoff
+                not c.get('dupe', False)
+                and estimated_time > cutoff
                 and input_with_timeout('Continue? [y/n] y: ', 'y', 3).lower()
                 != 'y'
             ):

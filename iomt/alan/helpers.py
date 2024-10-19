@@ -356,7 +356,8 @@ def elastic_landscape_loop(c):
                 f'{sep}TOTAL: {total_run_time:.2f}s'
                 f'{sep}ETR: {remaining_time:.2f}s'
             )
-        print(msg, flush=True, end='\r')
+        # print(msg, flush=True, end='\r')
+        print(msg, flush=True)
 
     start_time = time()
     for i, s in enumerate(slices):
@@ -381,6 +382,7 @@ def elastic_landscape_loop(c):
 
 def dump_tensors(c: DotDict, *, path):
     rt_errors_list = []
+
     def add_err(e, msg):
         stars = 80 * '*'
         rt_errors_list.append(stars)
@@ -388,7 +390,7 @@ def dump_tensors(c: DotDict, *, path):
         rt_errors_list.append(e)
         rt_errors_list.append(stars)
         rt_errors_list.append('\n\n')
-        
+
     def extend_name(name, k):
         return f'{name}___{k}' if name else k
 
@@ -405,7 +407,10 @@ def dump_tensors(c: DotDict, *, path):
                 try:
                     torch.save(v.detach().cpu(), full_path)
                 except:
-                    add_err(f'Error saving {k} to {full_path}', traceback.format_exc())
+                    add_err(
+                        f'Error saving {k} to {full_path}',
+                        traceback.format_exc(),
+                    )
                 if verbose:
                     print(f'Saved {k} to {full_path}')
             elif isinstance(v, list) or isinstance(v, tuple):
@@ -419,7 +424,7 @@ def dump_tensors(c: DotDict, *, path):
                         torch.save(e.detach().cpu(), full_path)
                         if verbose:
                             print(f'Saved {k}_{i} to {full_path}')
-    
+
     return '\n'.join(rt_errors_list)
 
 
@@ -428,22 +433,25 @@ def dump_and_plot_tensors(c: DotDict, *, path):
 
     tensor_errors = dump_tensors(c, path=path)
     plot_errors = plot_landscape(c, path=path)
-    
+
     if tensor_errors and plot_errors:
-        final_msg = f'BOTH tensor AND plot errors:\n\n{tensor_errors}\n\n{plot_errors}'
+        final_msg = (
+            f'BOTH tensor AND plot errors:\n\n{tensor_errors}\n\n{plot_errors}'
+        )
     elif tensor_errors:
         final_msg = f'Tensor errors:\n\n{tensor_errors}'
     elif plot_errors:
         final_msg = f'Plot errors:\n\n{plot_errors}'
     else:
         final_msg = ''
-    
+
     if final_msg:
         raise RuntimeError(final_msg)
-    
+
+
 def plot_tensors(c: DotDict, *, path):
     assert 'plt' in c.postprocess
-    
+
     plot_errors = plot_landscape(c, path=path)
 
     if plot_errors:
@@ -550,10 +558,14 @@ def plot_landscape(c: DotDict, *, path):
 
             plt.clf()
             plt.subplot(*subp_obs.shape, subp_obs.order[0])
-            easy_imshow(data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other']))
+            easy_imshow(
+                data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
+            )
 
             plt.subplot(*subp_obs.shape, subp_obs.order[1])
-            easy_imshow(data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other']))
+            easy_imshow(
+                data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
+            )
 
         subp_obs = opts.obs.subplot
         fopts_obs = opts.obs.frames
@@ -570,8 +582,9 @@ def plot_landscape(c: DotDict, *, path):
         filename_obs = pj(path, opts.obs.filename)
         save_frames(frames, path=filename_obs)
         print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
-    
+
     rt_error_list = []
+
     def add_err(e, msg):
         stars = 80 * '*'
         rt_error_list.append(stars)
@@ -579,27 +592,25 @@ def plot_landscape(c: DotDict, *, path):
         rt_error_list.append(e)
         rt_error_list.append(stars)
         rt_error_list.append('\n\n')
-        
+
     try:
         plot_errors()
     except:
         add_err('Error plotting errors', traceback.format_exc())
-    
+
     try:
         plot_medium()
     except:
         add_err('Error plotting medium', traceback.format_exc())
-        
+
     try:
         plot_wavefields()
     except:
         add_err('Error plotting wavefields', traceback.format_exc())
-    
+
     try:
         plot_obs()
     except:
         add_err('Error plotting obs', traceback.format_exc())
-    
+
     return '\n'.join(rt_error_list)
-    
-    
