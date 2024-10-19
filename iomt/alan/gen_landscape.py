@@ -213,6 +213,9 @@ def read_prev_data(c: DotDict, path: str) -> DotDict:
 def main(cfg: DictConfig):
     if cfg.get('dupe', True):
         dupe(hydra_out('stream'), editor=cfg.get('editor', None))
+        
+    with open(hydra_out('git_info.txt'), 'w') as f:
+        f.write(git_dump_info())
 
     c = preprocess_cfg(cfg)
 
