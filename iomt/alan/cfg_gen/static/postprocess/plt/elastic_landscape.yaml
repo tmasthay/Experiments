@@ -4,9 +4,27 @@ defaults:
 
 clip: 0.05
 
+unit: "m"
+
+rel:
+  y:
+    extent:
+      __call_post__: ${dep.helpers} rel2abs_extent
+      lower_left: ${src.lower_left}
+      upper_right: ${src.upper_right}
+      diff: ${grid.dy}
+  x:
+    extent:
+      __call_post__: ${dep.helpers} rel2abs_extent
+      lower_left: ${src.lower_left}
+      upper_right: ${src.upper_right}
+      diff: ${grid.dx}
+
 errors:
   imshow: ${..theme.imshow}
-  title: Errors
+  ylabel: ${..rel.y}
+  xlabel: ${..rel.x}
+  title: L2 Landscape for Elastic Marmousi2
   clip: ${..clip}
   other:
     filename: landscape.png
@@ -17,6 +35,8 @@ wavefields:
   base_wavefields: &base_wave
     imshow: ${...theme.imshow}
     clip: ${...clip}
+    xlabel: Depth (${...unit})
+    ylabel: Distance (${...unit})
     other:
       marker: ${....theme.marker}
       static: true
@@ -45,6 +65,8 @@ obs:
 
   base_obs: &base_obs
     imshow: ${...theme.imshow}
+    ylabel: Time (s)
+    xlabel: Receiver Number
     clip: ${...clip}
     other:
       static: true

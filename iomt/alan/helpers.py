@@ -50,6 +50,9 @@ def easy_imshow(
     path=None,
     **kw,
 ):
+    # input(xlabel)
+    # input(ylabel)
+    # input(extent)
     imshow = imshow or {}
     if transpose:
         data = data.T
@@ -380,6 +383,32 @@ def elastic_landscape_loop(c):
     )
 
 
+def rel_label(*, label, diff, num, unit):
+    max_val = diff * num
+    return f'{label} ({max_val:.2e} {unit})'
+
+
+def rel2abs(*, rel_coords, diff, start=0.0):
+    _min, _max = rel_coords
+    true_min = start + _min * diff
+    true_max = start + _max * diff
+    return [true_min, true_max]
+
+
+def rel2abs_extent(*, lower_left, upper_right, diff):
+    abs_lower_left = rel2abs(rel_coords=lower_left, diff=diff)
+    abs_upper_right = rel2abs(rel_coords=upper_right, diff=diff)
+    return abs_lower_left + abs_upper_right
+
+
+def abs_label(*, label, unit):
+    return f'{label} ({unit})'
+
+
+def merge_dot_dict(a: DotDict, b: DotDict) -> DotDict:
+    return DotDict({**a.dict(), **b.dict()})
+
+
 def dump_tensors(c: DotDict, *, path):
     rt_errors_list = []
 
@@ -480,6 +509,7 @@ def plot_landscape(c: DotDict, *, path):
         easy_imshow(
             errors.cpu(),
             path=pj(path, opts.errors.other.filename),
+            extent=[0.6, 0.4, 0.4, 0.6],
             **opts.errors.filter(exclude=['other']),
         )
         plt.clf()

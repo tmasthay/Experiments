@@ -213,7 +213,7 @@ def read_prev_data(c: DotDict, path: str) -> DotDict:
 def main(cfg: DictConfig):
     if cfg.get('dupe', True):
         dupe(hydra_out('stream'), editor=cfg.get('editor', None))
-        
+
     with open(hydra_out('git_info.txt'), 'w') as f:
         f.write(git_dump_info())
 
@@ -263,7 +263,9 @@ def main(cfg: DictConfig):
         c = read_prev_data(c, path=c.prev_data_dir)
 
     # always callback the postprocessing even if we used previous data
-    # c = runtime_reduce(c, call_key='__call_post__', self_key='self_post')
+    c = runtime_reduce(
+        c, call_key='__call_post__', self_key='self_post', allow_implicit=True
+    )
     c.postprocess.callback(c, path=hydra_out())
 
     with open('.latest', 'w') as f:
