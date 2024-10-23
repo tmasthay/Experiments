@@ -1,6 +1,6 @@
 import traceback
 from typing import List
-from matplotlib import pyplot as plt
+from matplotlib import patches, pyplot as plt
 import torch
 import deepwave as dw
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
@@ -154,6 +154,13 @@ def landscape_sources(
     return grid[:, None, :].to(device)
 
 
+def get_grid_limits(*, sy, ny, dy, sx, nx, dx):
+    max_y = sy + ny * dy
+    max_x = sx + nx * dx
+    return [sy, max_y, max_x, sx]
+    # return [sy, sx, max_y, max_x]
+
+
 def ricker_sources(
     *,
     n_srcs: float,
@@ -255,6 +262,13 @@ def load_scale_resample(
     return u.squeeze(0).squeeze(0)
 
 
+# var1_ref * var2_ref = var1_actual * var2_actual = const
+# -> return var2_actual = const / var1_actual
+def const_prod_rescale(*, var1_ref: float, var2_ref: float, var1_actual: float):
+    const_prod = var1_ref * var2_ref
+    return const_prod / var1_actual
+
+
 def easy_elastic(
     *,
     vp: torch.Tensor,
@@ -282,6 +296,22 @@ def easy_elastic(
         receiver_locations_y=receiver_locations_y,
         **kw,
     )
+
+
+class MyL2Loss(torch.nn.Module):
+    def __init__(self, ref_data):
+        super().__init__()
+        self.ref_data = ref_data
+
+    def forward(self, data):
+        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
+        assert (
+            tmp.shape == data.shape
+        ), f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
+        diff = tmp - data
+        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
+        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
+        return v
 
 
 def elastic_landscape_loop(c):
@@ -320,14 +350,6 @@ def elastic_landscape_loop(c):
         final_obs = torch.stack(u[-2:], dim=-1).to(c.device)
         return wavefield, final_obs
 
-    def loss(a, b):
-        tmp = a.repeat(b.shape[0], 1, 1, 1)
-        assert tmp.shape == b.shape, f'{a.shape=}, {tmp.shape=}, {b.shape=}'
-        diff = tmp - b
-        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
-        assert v.shape[0] == b.shape[0], f'{v.shape=}, {b.shape=}'
-        return v
-
     idxs = torch.arange(0, c.rt.src_loc.y.shape[0], c.batch_size)
     if idxs[-1] != c.rt.src_loc.y.shape[0]:
         idxs = torch.cat([idxs, torch.tensor([c.rt.src_loc.y.shape[0]])])
@@ -363,10 +385,15 @@ def elastic_landscape_loop(c):
         print(msg, flush=True)
 
     start_time = time()
+
+    my_loss = c.rt.loss.constructor(
+        ref_data, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {})
+    )
+    # c = runtime_reduce(c, )
     for i, s in enumerate(slices):
         report_progress(i)
         final_wavefields[s], obs[s] = forward(s)
-        errors[s] = loss(ref_data, obs[s]).view(*errors[s].shape)
+        errors[s] = my_loss(obs[s]).view(*errors[s].shape)
     total_forward_solve_time = time() - start_time
     avg_forward_solve_time = total_forward_solve_time / c.rt.src_loc.y.shape[0]
     print(
@@ -395,10 +422,52 @@ def rel2abs(*, rel_coords, diff, start=0.0):
     return [true_min, true_max]
 
 
-def rel2abs_extent(*, lower_left, upper_right, diff):
-    abs_lower_left = rel2abs(rel_coords=lower_left, diff=diff)
-    abs_upper_right = rel2abs(rel_coords=upper_right, diff=diff)
-    return abs_lower_left + abs_upper_right
+def rel2abs_extent(*, lower_left, upper_right, ny, nx, dy, dx, sy=0.0, sx=0.0):
+    # we assume here that y = "horizontal" and x = "vertical"
+    # This is just to remain consistent with the rest of the code
+    # despite it being nonsensical notation.
+    # Furthermore, we assume POSITIVE depth cooridnate points DOWNWARDS
+    # Hence just think about this and it's not that bad, even if the formulae
+    # below look weird.
+
+    # for clarity we write
+    #     y <--> horz
+    #    x <--> depth
+
+    min_horz = sy + lower_left[0] * dy * ny
+    max_horz = sy + upper_right[0] * dy * ny
+
+    min_depth = sx + upper_right[1] * dx * nx
+    max_depth = sx + lower_left[1] * dx * nx
+
+    # input(f'{lower_left=}, {upper_right=}, {ny=}, {nx=}, {dy=}, {dx=}, {sy=}, {sx=}')
+    # input(f'    ----> {min_horz=}, {max_horz=}, {min_depth=}, {max_depth=}')
+
+    # res = [min_horz, max_horz, min_depth, max_depth]
+    # input(f'{res=}')
+    return [min_horz, max_horz, min_depth, max_depth]
+
+
+def add_box(coords, **kw):
+    """
+    Adds a rectangular box to the current plot.
+
+    Parameters:
+        coords: List or array of the form [xmin, xmax, ymin, ymax].
+        color: Color of the box's edge.
+        linewidth: Thickness of the box's edge.
+    """
+    xmin, xmax, ymin, ymax = coords
+    # Calculate the width and height
+    width = xmax - xmin
+    height = ymax - ymin
+
+    # kw['facecolor'] = 'none'
+    # Create the rectangle
+    rect = patches.Rectangle((xmin, ymin), width, height, **kw)
+    # Add the rectangle to the current axis
+    ax = plt.gca()
+    ax.add_patch(rect)
 
 
 def abs_label(*, label, unit):
@@ -506,15 +575,17 @@ def plot_landscape(c: DotDict, *, path):
     # errors_flat = errors.view(-1)
 
     def plot_errors():
+        plt.clf()
         easy_imshow(
             errors.cpu(),
             path=pj(path, opts.errors.other.filename),
-            extent=[0.6, 0.4, 0.4, 0.6],
             **opts.errors.filter(exclude=['other']),
         )
         plt.clf()
 
     def plot_medium():
+        plt.clf()
+
         def toggle_subplot(i):
             plt.subplot(*subp_med.shape, subp_med.order[i - 1])
 
@@ -534,11 +605,38 @@ def plot_landscape(c: DotDict, *, path):
         filename = f'{pj(path, opts.medium.filename)}.png'
         plt.savefig(filename)
         print(f'Saved vp,vs,rho to {filename}')
+        plt.clf()
 
     def plot_wavefields():
+        plt.clf()
+
         def plotter(*, data, idx, fig, axes):
-            yx, yy = src_loc_y[idx[0], idx[1]].tolist()
-            xx, xy = src_loc_x[idx[0], idx[1]].tolist()
+            yx, yy = src_loc_y[idx[1], idx[0]].tolist()
+            xx, xy = src_loc_x[idx[1], idx[0]].tolist()
+
+            # yx, yy = src_loc_y[idx[1], idx[0]].tolist()
+            # xx, xy = src_loc_x[idx[1], idx[0]].tolist()
+
+            yx = c.grid.dx * yx
+            xx = c.grid.dx * xx
+
+            yy = c.grid.dy * yy
+            xy = c.grid.dy * xy
+
+            # input(f'{yx=}, {yy=}')
+            # input(f'{xx=}, {xy=}')
+
+            # input(f'{yx=}, {yy=}, {xx=}, {xy=}')
+            # input([yx, yy, xx, xy])
+
+            # if 'extent' in opts.wavefields.y:
+            #     yy *= c.grid.dy
+            #     xy *= c.grid.dy
+
+            #     xx *= c.grid.dx
+            #     yx *= c.grid.dx
+
+            # input([yy, xy, yx, xx])
 
             subp_wave = opts.wavefields.subplot
             if 'other' in opts.wavefields.y and opts.wavefields.y.other.get(
@@ -549,15 +647,23 @@ def plot_landscape(c: DotDict, *, path):
 
             plt.clf()
             plt.subplot(*subp_wave.shape, subp_wave.order[0])
-            plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
+            plt.scatter([yy], [yx], **opts.wavefields.y.other.marker)
             easy_imshow(
                 data[idx][..., 0].cpu().T, **opts.wavefields.y.filter(['other'])
             )
+            add_box(
+                c.postprocess.plt.errors.extent,
+                **c.postprocess.plt.wavefields.y.other.box,
+            )
 
             plt.subplot(*subp_wave.shape, subp_wave.order[1])
-            plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
+            plt.scatter([xy], [xx], **opts.wavefields.x.other.marker)
             easy_imshow(
                 data[idx][..., 1].cpu().T, **opts.wavefields.x.filter(['other'])
+            )
+            add_box(
+                c.postprocess.plt.errors.extent,
+                **c.postprocess.plt.wavefields.x.other.box,
             )
 
         subp_wave = opts.wavefields.subplot
@@ -578,8 +684,11 @@ def plot_landscape(c: DotDict, *, path):
         filename = pj(path, opts.wavefields.filename)
         save_frames(frames, path=filename)
         print(f'\nSaved wavefields to {pj(path, f"{filename}.gif")}\n')
+        plt.clf()
 
     def plot_obs():
+        plt.clf()
+
         def plotter_obs(*, data, idx, fig, axes):
             subp_obs = opts.obs.subplot
             if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
@@ -612,6 +721,7 @@ def plot_landscape(c: DotDict, *, path):
         filename_obs = pj(path, opts.obs.filename)
         save_frames(frames, path=filename_obs)
         print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
+        plt.clf()
 
     rt_error_list = []
 

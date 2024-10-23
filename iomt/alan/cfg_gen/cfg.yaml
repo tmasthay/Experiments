@@ -14,3 +14,9 @@ prev_data_dir: null
 
 dupe: true
 editor: code
+
+# hydra:
+#   launcher:
+#     class: joblib
+#     params:
+#       n_jobs: 4  # Number of parallel jobs

@@ -7,12 +7,13 @@ defaults:
 
 dep:
   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
+  basic: ${import_specs.key} cwd ${import_specs.delim} basic ${import_specs.delim}
   op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
   torch: ${import_specs.key} ${import_specs.delim} torch ${import_specs.delim}
   iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
   utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
   types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
-  
+
 
 device: cpu
 gpu: cuda:1
@@ -28,21 +29,29 @@ grid:
   ny: 3400
   nx: 700
   nt: 3000
-  dy: 16.0
-  dx: 16.0
+  dy:
+    __call_pre__: ${dep.helpers} const_prod_rescale
+    var1_ref: 3400
+    var2_ref: 4.0
+    var1_actual: ${..ny}
+  dx:
+    __call_pre__: ${dep.helpers} const_prod_rescale
+    var1_ref: 700
+    var2_ref: 4.0
+    var1_actual: ${..nx}
   dt: 0.004
 
 src:
   src_per_shot: 1
   lower_left: [0.1, 0.9]
   upper_right: [0.9, 0.1]
-  n_horz: 6 
+  n_horz: 6
   n_deep: 7
-  n_shots: 
+  n_shots:
     __call_pre__: ${dep.op} mul
     args:
       - ${...n_horz}
-      - ${...n_deep} 
+      - ${...n_deep}
 
 rec:
   n_recs: 100

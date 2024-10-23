@@ -5,22 +5,24 @@ python_args=("-W" "ignore")
 hydra_args=(
     "gen_landscape.py"
     "static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar"
-    "grid.ny=500"
-    "grid.nx=500"
-    "grid.nt=4000"
-    "grid.dy=28.0"
-    "grid.dx=6.0"
-    "src.n_horz=7"
-    "src.n_deep=7"
-    "gpu='cuda:1'"
-    "batch_size=250"
+    # "grid.ny=500,3400"
+    # "grid.nx=500,700"
+    # "grid.nt=2000,3000,4000"
+    "grid.ny=700"
+    "grid.nx=700"
+    "grid.nt=3000"
+    "src.n_horz=11"
+    "src.n_deep=11"
+    "gpu='cuda:0'"
+    "batch_size=50"
     "src.lower_left=[0.4,0.6]"
     "src.upper_right=[0.6,0.4]"
-    "rt/vp=hom"
-    "rt/vs=hom"
-    "rt/rho=hom"
+    # "rt/vp=hom"
+    # "rt/vs=hom"
+    # "rt/rho=hom"
     "dupe=true"
     "editor=null"
+    # "--multirun"
 )
 
 # Run the command with nohup and capture the PID
@@ -32,6 +34,7 @@ if [ "$NOHUP_MODE" == "0" ]; then
     python "${python_args[@]}" "${hydra_args[@]}"
     exit 0
 else
+    echo "${hydra_args[@]}"
     nohup python "${python_args[@]}" "${hydra_args[@]}" >nohup.out 2>&1 &
 fi
 

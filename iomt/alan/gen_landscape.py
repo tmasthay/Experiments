@@ -32,9 +32,24 @@ from misfit_toys.swiffer import dupe, sco
 from time import time, sleep
 from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
 from os.path import join as pj
+import warnings
+import yaml
 
 # set_print_options(callback=torch_stats('all'))
 set_print_options(callback=torch_stats(['shape']))
+
+
+def warning_filter(message, category, filename, lineno, file=None, line=None):
+    if "At least six grid cells per wavelength" in str(
+        message
+    ):  # Check for the specific message
+        raise category(
+            message
+        )  # Raise an exception for the problematic warning
+
+
+# Apply the custom warning filter
+warnings.showwarning = warning_filter
 
 
 def get_last_run_dir():
@@ -155,6 +170,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         self_key="self_pre",
     )
 
+    with open(hydra_out('.hydra/runtime_pre.yaml'), 'w') as f:
+        yaml.dump(c.dict(), f)
+
     cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order', 'dep']).dict())
     resolve_order = deepcopy(c.resolve_order or [])
     del c.resolve_order
@@ -264,7 +282,11 @@ def main(cfg: DictConfig):
 
     # always callback the postprocessing even if we used previous data
     c = runtime_reduce(
-        c, call_key='__call_post__', self_key='self_post', allow_implicit=True
+        c,
+        call_key='__call_post__',
+        self_key='self_post',
+        allow_implicit=True,
+        relax=False,
     )
     c.postprocess.callback(c, path=hydra_out())
 

@@ -6,25 +6,32 @@ clip: 0.05
 
 unit: "m"
 
-rel:
-  y:
-    extent:
-      __call_post__: ${dep.helpers} rel2abs_extent
-      lower_left: ${src.lower_left}
-      upper_right: ${src.upper_right}
-      diff: ${grid.dy}
-  x:
-    extent:
-      __call_post__: ${dep.helpers} rel2abs_extent
-      lower_left: ${src.lower_left}
-      upper_right: ${src.upper_right}
-      diff: ${grid.dx}
+# rel:
+#   __call_post__: ${dep.helpers} rel2abs_extent
+#   lower_left: ${src.lower_left}
+#   upper_right: ${src.upper_right}
+#   start1: 0.0
+#   start2: 0.0
+#   # diff1: self_post.grid.dy
+#   # diff2: self_post.grid.dx
+#   diff1: 1.0
+#   diff2: 1.0
 
 errors:
   imshow: ${..theme.imshow}
-  ylabel: ${..rel.y}
-  xlabel: ${..rel.x}
+  ylabel: Source Depth (${..unit})
+  xlabel: Source Offset (${..unit})
   title: L2 Landscape for Elastic Marmousi2
+  extent:
+    __call_post__: ${dep.helpers} rel2abs_extent
+    lower_left: ${src.lower_left}
+    upper_right: ${src.upper_right}
+    ny: ${grid.ny}
+    nx: ${grid.nx}
+    dy: self_post.grid.dy
+    dx: self_post.grid.dx
+    sy: 0.0
+    sx: 0.0
   clip: ${..clip}
   other:
     filename: landscape.png
@@ -35,11 +42,23 @@ wavefields:
   base_wavefields: &base_wave
     imshow: ${...theme.imshow}
     clip: ${...clip}
-    xlabel: Depth (${...unit})
-    ylabel: Distance (${...unit})
+    ylabel: Depth (${...unit})
+    xlabel: Distance (${...unit})
+    extent:
+      __call_post__: ${dep.helpers} get_grid_limits
+      sy: 0.0
+      dy: ${grid.dy}
+      ny: ${grid.ny}
+      sx: 0.0
+      dx: ${grid.dx}
+      nx: ${grid.nx}
     other:
       marker: ${....theme.marker}
       static: true
+      box:
+        edgecolor: black
+        linewidth: 2
+        facecolor: "none"
 
   subplot:
     shape: [2, 1]
@@ -51,6 +70,7 @@ wavefields:
     max_frames: 30
     iter:
       none_dims: [-3, -2, -1]
+      permute: [1, 0]
 
   y:
     <<: *base_wave
