@@ -210,7 +210,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
 
     # Assert that the vp/vs ratio is within bounds
-    assert not (c.rt.vp < torch.sqrt(torch.tensor(2.0)) * c.rt.vs).any()
+    vp_vs = c.rt.vp / (1e-6 + c.rt.vs)
+    assert not torch.isnan(vp_vs).any(), f'{vp_vs=}'
+    assert vp_vs.min() >= torch.sqrt(torch.tensor(2.0)), f'{vp_vs.min().item()=}'
 
     return c
 
@@ -259,6 +261,9 @@ def main(cfg: DictConfig):
 
             # five minute cutoff before we actually query. Else just run.
             cutoff = 300
+            absolute_cutoff = 86400
+            if estimated_time > absolute_cutoff:
+                raise RuntimeError(f"Estimated time is {estimated_time:.2f} seconds...> {absolute_cutoff} seconds. Exiting...")
             if (
                 not c.get('dupe', False)
                 and estimated_time > cutoff
