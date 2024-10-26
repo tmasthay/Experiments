@@ -1,0 +1,17 @@
+Estimated time for forward solves: 145.53 seconds
+1/2...2/2...    AVG: 101.61s    TOTAL: 101.61s    ETR: 101.61sTotal solve time: 179.54s
+    avg: 0.41s
+Saved to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/09-23-10/landscape.png
+Saved vp,vs,rho to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/09-23-10/medium.png
+Plotting frames...done in 12.60 seconds.
+
+Saved wavefields to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/09-23-10/wavefields.gif
+
+Plotting frames...done in 23.22 seconds.
+
+Saved obs to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/09-23-10/obs.gif
+
+
+Run . .latest to cd to the latest output directory
+
+Run time of main callback: 181.55 seconds

@@ -1,0 +1,263 @@
+import_specs:
+  delim: '@'
+  key: __import__
+  ignore_spaces: true
+use_prev_data: false
+prev_data_dir: null
+dupe: true
+editor: null
+dep:
+  helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
+  op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
+  torch: ${import_specs.key} ${import_specs.delim} torch ${import_specs.delim}
+  iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
+  utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
+  types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
+device: cpu
+gpu: cuda:1
+path: ${oc.env:CONDA_PREFIX}/data/marm2/smooth
+batch_size: 250
+solver:
+  pml_width: 20
+  accuracy: 4
+  pml_freq: 2.5
+grid:
+  ny: 500
+  nx: 500
+  nt: 4000
+  dy: 16.0
+  dx: 16.0
+  dt: 0.004
+src:
+  src_per_shot: 1
+  lower_left:
+  - 0.4
+  - 0.6
+  upper_right:
+  - 0.6
+  - 0.4
+  n_horz: 51
+  n_deep: 51
+  n_shots:
+    __call_pre__: ${dep.op} mul
+    args:
+    - ${...n_horz}
+    - ${...n_deep}
+rec:
+  n_recs: 100
+  first: 0.1
+  last: 0.9
+  depth: 2
+bounds:
+  vp:
+  - 1000.0
+  - 5000.0
+  vs:
+  - 0.0
+  - 5000.0
+  rho:
+  - 1000.0
+  - 3000.0
+main:
+  callback: ${dep.helpers} elastic_landscape_loop
+postprocess:
+  callback: ${dep.helpers} plot_tensors
+  plt:
+    clip: 0.05
+    errors:
+      imshow: ${..theme.imshow}
+      title: Errors
+      clip: ${..clip}
+      other:
+        filename: landscape.png
+    wavefields:
+      filename: wavefields
+      base_wavefields:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          marker: ${....theme.marker}
+          static: true
+      subplot:
+        shape:
+        - 2
+        - 1
+        order:
+        - 1
+        - 2
+        kw:
+          figsize:
+          - 10
+          - 10
+      frames:
+        max_frames: 30
+        iter:
+          none_dims:
+          - -3
+          - -2
+          - -1
+      'y':
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          marker: ${....theme.marker}
+          static: true
+        title: Wavefield Y component
+      x:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          marker: ${....theme.marker}
+          static: true
+        title: Wavefield X component
+    obs:
+      filename: obs
+      base_obs:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          static: true
+      subplot:
+        shape:
+        - 2
+        - 1
+        order:
+        - 1
+        - 2
+        kw:
+          figsize:
+          - 10
+          - 10
+      frames:
+        max_frames: 30
+        iter:
+          none_dims:
+          - -3
+          - -2
+          - -1
+      'y':
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          static: true
+        title: Obs Data Y component
+      x:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        other:
+          static: true
+        title: Obs Data X component
+    medium:
+      filename: medium
+      subplot:
+        shape:
+        - 1
+        - 3
+        order:
+        - 1
+        - 2
+        - 3
+        kw:
+          figsize:
+          - 15
+          - 5
+        suptitle: Elastic Medium
+      base_medium:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+      vp:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        title: VP
+      vs:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        title: VS
+      rho:
+        imshow: ${...theme.imshow}
+        clip: ${...clip}
+        title: Density
+    theme:
+      imshow:
+        cmap: seismic
+        aspect: auto
+      marker:
+        c: r
+        s: 100
+        marker: '*'
+resolve_order:
+- - __call_vp__
+  - self_vp
+- - __call_vs__
+  - self_vs
+- - __call_rho__
+  - self_rho
+- - __call_src_loc__
+  - self_src_loc
+- - __call_rec_loc__
+  - self_rec_loc
+- - __call_src_amp__
+  - self_src_amp
+- - __call__
+  - self
+rt:
+  vp:
+    __call_vp__: ${dep.torch} mul
+    other: 1500.0
+    input:
+      __call_vp__: ${dep.torch} ones
+      args:
+      - ${grid.ny}
+      - ${grid.nx}
+      device: ${device}
+  vs:
+    __call_vs__: ${dep.torch} mul
+    other: 1000.0
+    input:
+      __call_vs__: ${dep.torch} ones
+      args:
+      - ${grid.ny}
+      - ${grid.nx}
+      device: ${device}
+  rho:
+    __call_rho__: ${dep.torch} mul
+    other: 1500.0
+    input:
+      __call_rho__: ${dep.torch} ones
+      args:
+      - ${grid.ny}
+      - ${grid.nx}
+      device: ${device}
+  src_loc:
+    'y':
+      __call_src_loc__: ${dep.helpers} landscape_sources
+      lower_left: ${src.lower_left}
+      upper_right: ${src.upper_right}
+      ny: ${grid.ny}
+      nx: ${grid.nx}
+      n_srcs_horz: ${src.n_horz}
+      n_srcs_deep: ${src.n_deep}
+      device: ${device}
+    x: self_src_loc.rt.src_loc.y
+  rec_loc:
+    'y':
+      __call_rec_loc__: ${dep.helpers} rel_fixed_depth_rec
+      n_shots: self_rec_loc.src.n_shots
+      rec_per_shot: self_rec_loc.rec.n_recs
+      first: 0.1
+      last: 0.9
+      ny: self_rec_loc.grid.ny
+      depth: self_rec_loc.rec.depth
+      device: self_rec_loc.device
+    x: self_rec_loc.rt.rec_loc.y
+  src_amp:
+    'y':
+      __call_src_amp__: ${dep.helpers} ricker_sources
+      n_srcs: self_src_amp.rt.src_loc.y.shape[0]
+      freq: ${solver.pml_freq}
+      time_peak_factor: 2.5
+      device: self_src_amp.device
+      dt: ${grid.dt}
+      nt: ${grid.nt}
+      scale: 1000000000.0
+    x: self_src_loc.rt.src_amp.y

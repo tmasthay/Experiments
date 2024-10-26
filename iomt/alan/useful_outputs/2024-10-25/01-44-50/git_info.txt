@@ -1,0 +1,198 @@
+HASH: 0ca25318c03847cc6782ab98bd414c8d7f180d9d
+BRANCH: main
+
+UNTRACKED FILES: .latest
+.vscode/settings.json
+basic.py
+cfg/.vscode/settings.json
+cfg_gen/.vscode/settings.json
+cfg_gen/case/.vscode/settings.json
+cfg_gen/resolve_order/.vscode/settings.json
+cfg_gen/rt/.vscode/settings.json
+cfg_gen/rt/loss/l2.yaml
+cfg_gen/rt/loss/w1.yaml
+cfg_gen/rt/loss/w2.yaml
+cfg_gen/static/.vscode/settings.json
+nohup.out
+res.jpg
+run2.sh
+tmp.png
+tmp.py
+tmp/cfg/cfg.yaml
+tmp/landscape.jpg
+tmp/main.py
+tmp/outputs/2024-10-24/23-50-55/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-50-55/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-50-55/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-50-55/test_w1.log
+tmp/outputs/2024-10-24/23-51-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-51-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-51-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-51-12/main.log
+tmp/outputs/2024-10-24/23-52-18/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-52-18/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-52-18/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-52-18/main.log
+tmp/outputs/2024-10-24/23-52-41/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-52-41/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-52-41/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-52-41/main.log
+tmp/outputs/2024-10-24/23-57-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-12/main.log
+tmp/outputs/2024-10-24/23-57-20/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-20/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-20/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-20/main.log
+tmp/outputs/2024-10-24/23-57-39/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-39/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-39/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-39/main.log
+tmp/outputs/2024-10-24/23-58-01/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-01/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-01/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-01/main.log
+tmp/outputs/2024-10-24/23-58-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-12/main.log
+tmp/outputs/2024-10-24/23-58-47/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-47/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-47/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-47/main.log
+tmp/outputs/2024-10-24/23-59-01/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-01/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-01/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-01/main.log
+tmp/outputs/2024-10-24/23-59-26/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-26/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-26/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-26/main.log
+tmp/outputs/2024-10-24/23-59-44/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-44/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-44/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-44/main.log
+tmp/outputs/2024-10-25/00-10-24/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-24/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-24/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-24/main.log
+tmp/outputs/2024-10-25/00-10-38/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-38/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-38/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-38/main.log
+tmp/outputs/2024-10-25/00-10-58/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-58/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-58/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-58/main.log
+tmp/outputs/2024-10-25/00-11-27/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-11-27/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-11-27/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-11-27/main.log
+tmp/outputs/2024-10-25/00-24-43/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-24-43/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-24-43/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-24-43/main.log
+tmp/outputs/2024-10-25/00-24-53/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-24-53/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-24-53/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-24-53/main.log
+tmp/outputs/2024-10-25/00-27-39/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-27-39/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-27-39/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-27-39/main.log
+tmp/outputs/2024-10-25/00-33-51/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-33-51/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-33-51/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-33-51/main.log
+tmp/outputs/2024-10-25/00-34-05/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-34-05/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-34-05/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-34-05/main.log
+tmp/outputs/2024-10-25/00-36-06/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-06/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-06/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-06/main.log
+tmp/outputs/2024-10-25/00-36-40/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-40/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-40/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-40/main.log
+tmp/outputs/2024-10-25/00-36-50/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-50/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-50/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-50/main.log
+tmp/outputs/2024-10-25/00-37-25/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-37-25/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-37-25/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-37-25/main.log
+tmp/outputs/2024-10-25/00-38-26/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-38-26/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-38-26/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-38-26/main.log
+tmp/outputs/2024-10-25/00-39-11/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-39-11/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-39-11/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-39-11/main.log
+tmp/outputs/2024-10-25/00-42-41/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-42-41/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-42-41/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-42-41/main.log
+tmp/outputs/2024-10-25/00-48-52/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-48-52/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-48-52/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-48-52/main.log
+tmp/outputs/2024-10-25/00-49-21/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-49-21/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-49-21/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-49-21/main.log
+tmp/outputs/2024-10-25/00-51-40/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-51-40/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-51-40/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-51-40/main.log
+tmp/outputs/2024-10-25/00-52-06/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-06/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-06/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-06/main.log
+tmp/outputs/2024-10-25/00-52-32/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-32/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-32/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-32/main.log
+tmp/outputs/2024-10-25/00-52-49/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-49/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-49/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-49/main.log
+tmp/outputs/2024-10-25/00-53-38/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-53-38/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-53-38/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-53-38/main.log
+tmp/outputs/2024-10-25/00-54-58/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-54-58/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-54-58/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-54-58/main.log
+tmp/outputs/2024-10-25/00-55-46/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-55-46/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-55-46/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-55-46/main.log
+tmp/raw_data.gif
+tmp/test_w1.py
+
+********************************************************************************
+DIFF: diff --git a/iomt/alan/nohup.sh b/iomt/alan/nohup.sh
+index 81dda9b..3fd41d8 100755
+--- a/iomt/alan/nohup.sh
++++ b/iomt/alan/nohup.sh
+@@ -11,10 +11,10 @@ hydra_args=(
+     "grid.ny=700"
+     "grid.nx=700"
+     "grid.nt=3000"
+-    "src.n_horz=21"
+-    "src.n_deep=21"
++    "src.n_horz=101"
++    "src.n_deep=101"
+     "gpu='cuda:0'"
+-    "batch_size=10"
++    "batch_size=50"
+     "src.lower_left=[0.4,0.6]"
+     "src.upper_right=[0.6,0.4]"
+     "rt/vp=hom"
+********************************************************************************

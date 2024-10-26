@@ -1,0 +1,12 @@
+- static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar
+- grid.ny=700
+- grid.nx=700
+- grid.nt=3000
+- src.n_horz=11
+- src.n_deep=11
+- gpu='cuda:0'
+- batch_size=50
+- src.lower_left=[0.4,0.6]
+- src.upper_right=[0.6,0.4]
+- dupe=true
+- editor=null

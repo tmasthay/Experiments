@@ -1,0 +1,3 @@
+- static=elastic_landscape
+- src.n_horz=3
+- src.n_deep=3

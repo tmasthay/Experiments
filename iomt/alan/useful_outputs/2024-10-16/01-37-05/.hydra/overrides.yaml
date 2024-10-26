@@ -1,0 +1,3 @@
+- src.n_horz=11
+- src.n_deep=11
+- postprocess.plt.def_imshow.cmap=nipy_spectral

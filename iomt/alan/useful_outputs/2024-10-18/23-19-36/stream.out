@@ -1,0 +1,58 @@
+Estimated time for forward solves: 3366.33 seconds
+1/41...
+2/41...    AVG: 101.47s    TOTAL: 101.47s    ETR: 4058.91s
+3/41...    AVG: 101.84s    TOTAL: 203.67s    ETR: 3971.58s
+4/41...    AVG: 102.18s    TOTAL: 306.54s    ETR: 3882.87s
+5/41...    AVG: 102.45s    TOTAL: 409.79s    ETR: 3790.60s
+6/41...    AVG: 102.59s    TOTAL: 512.96s    ETR: 3693.33s
+7/41...    AVG: 102.58s    TOTAL: 615.51s    ETR: 3590.46s
+8/41...    AVG: 102.58s    TOTAL: 718.08s    ETR: 3487.83s
+9/41...    AVG: 102.65s    TOTAL: 821.23s    ETR: 3387.56s
+10/41...    AVG: 102.64s    TOTAL: 923.75s    ETR: 3284.45s
+11/41...    AVG: 102.68s    TOTAL: 1026.79s    ETR: 3183.03s
+12/41...    AVG: 102.69s    TOTAL: 1129.55s    ETR: 3080.59s
+13/41...    AVG: 102.67s    TOTAL: 1232.05s    ETR: 2977.46s
+14/41...    AVG: 102.70s    TOTAL: 1335.04s    ETR: 2875.48s
+15/41...    AVG: 102.72s    TOTAL: 1438.01s    ETR: 2773.31s
+16/41...    AVG: 102.74s    TOTAL: 1541.14s    ETR: 2671.30s
+17/41...    AVG: 102.78s    TOTAL: 1644.41s    ETR: 2569.38s
+18/41...    AVG: 102.76s    TOTAL: 1746.91s    ETR: 2466.22s
+19/41...    AVG: 102.72s    TOTAL: 1849.05s    ETR: 2362.67s
+20/41...    AVG: 102.71s    TOTAL: 1951.47s    ETR: 2259.59s
+21/41...    AVG: 102.67s    TOTAL: 2053.45s    ETR: 2156.13s
+22/41...    AVG: 102.64s    TOTAL: 2155.43s    ETR: 2052.79s
+23/41...    AVG: 102.61s    TOTAL: 2257.43s    ETR: 1949.60s
+24/41...    AVG: 102.58s    TOTAL: 2359.43s    ETR: 1846.51s
+25/41...    AVG: 102.56s    TOTAL: 2461.41s    ETR: 1743.50s
+26/41...    AVG: 102.54s    TOTAL: 2563.40s    ETR: 1640.58s
+27/41...    AVG: 102.54s    TOTAL: 2666.11s    ETR: 1538.14s
+28/41...    AVG: 102.53s    TOTAL: 2768.31s    ETR: 1435.42s
+29/41...    AVG: 102.51s    TOTAL: 2870.28s    ETR: 1332.63s
+30/41...    AVG: 102.49s    TOTAL: 2972.25s    ETR: 1229.89s
+31/41...    AVG: 102.47s    TOTAL: 3074.22s    ETR: 1127.22s
+32/41...    AVG: 102.47s    TOTAL: 3176.62s    ETR: 1024.72s
+33/41...    AVG: 102.47s    TOTAL: 3279.19s    ETR: 922.27s
+34/41...    AVG: 102.46s    TOTAL: 3381.12s    ETR: 819.67s
+35/41...    AVG: 102.44s    TOTAL: 3483.00s    ETR: 717.09s
+36/41...    AVG: 102.44s    TOTAL: 3585.31s    ETR: 614.62s
+37/41...    AVG: 102.43s    TOTAL: 3687.31s    ETR: 512.13s
+38/41...    AVG: 102.41s    TOTAL: 3789.15s    ETR: 409.64s
+39/41...    AVG: 102.40s    TOTAL: 3891.07s    ETR: 307.19s
+40/41...    AVG: 102.38s    TOTAL: 3993.01s    ETR: 204.77s
+41/41...    AVG: 102.37s    TOTAL: 4094.94s    ETR: 102.37s
+Total solve time: 4176.99s
+    avg: 0.41s
+Saved to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/23-19-36/landscape.png
+Saved vp,vs,rho to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/23-19-36/medium.png
+Plotting frames...done in 156.78 seconds.
+
+Saved wavefields to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/23-19-36/wavefields.gif
+
+Plotting frames...done in 288.06 seconds.
+
+Saved obs to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/23-19-36/obs.gif
+
+
+Run . .latest to cd to the latest output directory
+
+Run time of main callback: 4187.79 seconds

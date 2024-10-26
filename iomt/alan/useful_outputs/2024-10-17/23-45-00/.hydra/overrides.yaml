@@ -1,0 +1,10 @@
+- static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar
+- grid.ny=500
+- grid.nx=500
+- grid.nt=2000
+- src.n_horz=101
+- src.n_deep=101
+- rt/vp=hom
+- rt/vs=hom
+- rt/rho=hom
+- batch_size=250

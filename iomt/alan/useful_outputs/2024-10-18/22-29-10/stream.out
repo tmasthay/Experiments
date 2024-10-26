@@ -1,0 +1,28 @@
+Estimated time for forward solves: 858.33 seconds
+1/11...
+2/11...    AVG: 101.00s    TOTAL: 101.00s    ETR: 1010.05s
+3/11...    AVG: 101.26s    TOTAL: 202.53s    ETR: 911.37s
+4/11...    AVG: 101.39s    TOTAL: 304.16s    ETR: 811.10s
+5/11...    AVG: 101.44s    TOTAL: 405.77s    ETR: 710.10s
+6/11...    AVG: 101.47s    TOTAL: 507.37s    ETR: 608.85s
+7/11...    AVG: 101.50s    TOTAL: 608.98s    ETR: 507.48s
+8/11...    AVG: 101.51s    TOTAL: 710.59s    ETR: 406.05s
+9/11...    AVG: 101.52s    TOTAL: 812.19s    ETR: 304.57s
+10/11...    AVG: 101.53s    TOTAL: 913.78s    ETR: 203.06s
+11/11...    AVG: 101.54s    TOTAL: 1015.37s    ETR: 101.54s
+Total solve time: 1056.45s
+    avg: 0.41s
+Saved to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/22-29-10/landscape.png
+Saved vp,vs,rho to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/22-29-10/medium.png
+Plotting frames...done in 44.55 seconds.
+
+Saved wavefields to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/22-29-10/wavefields.gif
+
+Plotting frames...done in 82.56 seconds.
+
+Saved obs to /home/tyler/Documents/repos/Experiments/iomt/alan/outputs/2024-10-18/22-29-10/obs.gif
+
+
+Run . .latest to cd to the latest output directory
+
+Run time of main callback: 1060.76 seconds

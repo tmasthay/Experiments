@@ -1,0 +1,514 @@
+HASH: 07049506f931b25a0b8858be48505106fab93fde
+BRANCH: main
+
+UNTRACKED FILES: .latest
+.vscode/settings.json
+basic.py
+cfg/.vscode/settings.json
+cfg_gen/.vscode/settings.json
+cfg_gen/case/.vscode/settings.json
+cfg_gen/resolve_order/.vscode/settings.json
+cfg_gen/rt/.vscode/settings.json
+cfg_gen/rt/loss/l2.yaml
+cfg_gen/static/.vscode/settings.json
+nohup.out
+res.jpg
+run2.sh
+tmp.png
+tmp.py
+
+********************************************************************************
+DIFF: diff --git a/iomt/alan/cfg_gen/cfg.yaml b/iomt/alan/cfg_gen/cfg.yaml
+index af47b75..da31445 100644
+--- a/iomt/alan/cfg_gen/cfg.yaml
++++ b/iomt/alan/cfg_gen/cfg.yaml
+@@ -14,3 +14,9 @@ prev_data_dir: null
+ 
+ dupe: true
+ editor: code
++
++# hydra:
++#   launcher:
++#     class: joblib
++#     params:
++#       n_jobs: 4  # Number of parallel jobs
+diff --git a/iomt/alan/cfg_gen/rt/elastic_landscape.yaml b/iomt/alan/cfg_gen/rt/elastic_landscape.yaml
+index c4fe84f..468d6f5 100644
+--- a/iomt/alan/cfg_gen/rt/elastic_landscape.yaml
++++ b/iomt/alan/cfg_gen/rt/elastic_landscape.yaml
+@@ -6,3 +6,4 @@ defaults:
+   - src_loc: ${static}
+   - rec_loc: ${static}
+   - src_amp: ${static}
++  - loss: l2
+diff --git a/iomt/alan/cfg_gen/static/elastic_landscape.yaml b/iomt/alan/cfg_gen/static/elastic_landscape.yaml
+index 8193007..36c13ed 100644
+--- a/iomt/alan/cfg_gen/static/elastic_landscape.yaml
++++ b/iomt/alan/cfg_gen/static/elastic_landscape.yaml
+@@ -7,6 +7,7 @@ defaults:
+ 
+ dep:
+   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
++  basic: ${import_specs.key} cwd ${import_specs.delim} basic ${import_specs.delim}
+   op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
+   torch: ${import_specs.key} ${import_specs.delim} torch ${import_specs.delim}
+   iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
+@@ -28,8 +29,16 @@ grid:
+   ny: 3400
+   nx: 700
+   nt: 3000
+-  dy: 16.0
+-  dx: 16.0
++  dy: 
++    __call_pre__: ${dep.helpers} const_prod_rescale
++    var1_ref: 3400
++    var2_ref: 4.0
++    var1_actual: ${..ny}
++  dx:
++    __call_pre__: ${dep.helpers} const_prod_rescale
++    var1_ref: 700
++    var2_ref: 4.0
++    var1_actual: ${..nx}
+   dt: 0.004
+ 
+ src:
+diff --git a/iomt/alan/cfg_gen/static/postprocess/plt/elastic_landscape.yaml b/iomt/alan/cfg_gen/static/postprocess/plt/elastic_landscape.yaml
+index 996daa4..85bd5d5 100644
+--- a/iomt/alan/cfg_gen/static/postprocess/plt/elastic_landscape.yaml
++++ b/iomt/alan/cfg_gen/static/postprocess/plt/elastic_landscape.yaml
+@@ -6,25 +6,32 @@ clip: 0.05
+ 
+ unit: "m"
+ 
+-rel:
+-  y:
+-    extent:
+-      __call_post__: ${dep.helpers} rel2abs_extent
+-      lower_left: ${src.lower_left}
+-      upper_right: ${src.upper_right}
+-      diff: ${grid.dy}
+-  x:
+-    extent:
+-      __call_post__: ${dep.helpers} rel2abs_extent
+-      lower_left: ${src.lower_left}
+-      upper_right: ${src.upper_right}
+-      diff: ${grid.dx}
++# rel:
++#   __call_post__: ${dep.helpers} rel2abs_extent
++#   lower_left: ${src.lower_left}
++#   upper_right: ${src.upper_right}
++#   start1: 0.0
++#   start2: 0.0
++#   # diff1: self_post.grid.dy
++#   # diff2: self_post.grid.dx
++#   diff1: 1.0
++#   diff2: 1.0
+ 
+ errors:
+   imshow: ${..theme.imshow}
+-  ylabel: ${..rel.y}
+-  xlabel: ${..rel.x}
++  ylabel: Source Depth (${..unit})
++  xlabel: Source Offset (${..unit})
+   title: L2 Landscape for Elastic Marmousi2
++  extent:
++    __call_post__: ${dep.helpers} rel2abs_extent
++    lower_left: ${src.lower_left}
++    upper_right: ${src.upper_right}
++    ny: ${grid.ny}
++    nx: ${grid.nx}
++    dy: self_post.grid.dy
++    dx: self_post.grid.dx
++    sy: 0.0
++    sx: 0.0
+   clip: ${..clip}
+   other:
+     filename: landscape.png
+@@ -35,11 +42,23 @@ wavefields:
+   base_wavefields: &base_wave
+     imshow: ${...theme.imshow}
+     clip: ${...clip}
+-    xlabel: Depth (${...unit})
+-    ylabel: Distance (${...unit})
++    ylabel: Depth (${...unit})
++    xlabel: Distance (${...unit})
++    extent:
++      __call_post__: ${dep.helpers} get_grid_limits
++      sy: 0.0
++      dy: ${grid.dy}
++      ny: ${grid.ny}
++      sx: 0.0
++      dx: ${grid.dx}
++      nx: ${grid.nx}
+     other:
+       marker: ${....theme.marker}
+       static: true
++      box:
++        edgecolor: black
++        linewidth: 2
++        facecolor: "none"
+ 
+   subplot:
+     shape: [2, 1]
+@@ -51,6 +70,7 @@ wavefields:
+     max_frames: 30
+     iter:
+       none_dims: [-3, -2, -1]
++      permute: [1, 0]
+ 
+   y:
+     <<: *base_wave
+diff --git a/iomt/alan/cfg_gen/static/postprocess/plt/theme/seismic_redstar.yaml b/iomt/alan/cfg_gen/static/postprocess/plt/theme/seismic_redstar.yaml
+index ae925e8..534c6a4 100644
+--- a/iomt/alan/cfg_gen/static/postprocess/plt/theme/seismic_redstar.yaml
++++ b/iomt/alan/cfg_gen/static/postprocess/plt/theme/seismic_redstar.yaml
+@@ -1,4 +1,5 @@
+ defaults:
+   - _self_
+   - imshow: seismic
+-  - marker: redstar
+\ No newline at end of file
++  - marker: redstar
++
+diff --git a/iomt/alan/gen_landscape.py b/iomt/alan/gen_landscape.py
+index 90b4084..f29cea6 100644
+--- a/iomt/alan/gen_landscape.py
++++ b/iomt/alan/gen_landscape.py
+@@ -32,10 +32,18 @@ from misfit_toys.swiffer import dupe, sco
+ from time import time, sleep
+ from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
+ from os.path import join as pj
++import warnings
++import yaml
+ 
+ # set_print_options(callback=torch_stats('all'))
+ set_print_options(callback=torch_stats(['shape']))
+ 
++def warning_filter(message, category, filename, lineno, file=None, line=None):
++    if "At least six grid cells per wavelength" in str(message):  # Check for the specific message
++        raise category(message)  # Raise an exception for the problematic warning
++
++# Apply the custom warning filter
++warnings.showwarning = warning_filter
+ 
+ def get_last_run_dir():
+     try:
+@@ -155,6 +163,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
+         self_key="self_pre",
+     )
+ 
++    with open(hydra_out('.hydra/runtime_pre.yaml'), 'w') as f:
++        yaml.dump(c.dict(), f)
++        
+     cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order', 'dep']).dict())
+     resolve_order = deepcopy(c.resolve_order or [])
+     del c.resolve_order
+@@ -264,7 +275,7 @@ def main(cfg: DictConfig):
+ 
+     # always callback the postprocessing even if we used previous data
+     c = runtime_reduce(
+-        c, call_key='__call_post__', self_key='self_post', allow_implicit=True
++        c, call_key='__call_post__', self_key='self_post', allow_implicit=True, relax=False
+     )
+     c.postprocess.callback(c, path=hydra_out())
+ 
+diff --git a/iomt/alan/helpers.py b/iomt/alan/helpers.py
+index c71c9be..9d26bf9 100644
+--- a/iomt/alan/helpers.py
++++ b/iomt/alan/helpers.py
+@@ -1,6 +1,6 @@
+ import traceback
+ from typing import List
+-from matplotlib import pyplot as plt
++from matplotlib import patches, pyplot as plt
+ import torch
+ import deepwave as dw
+ from deepwave.common import vpvsrho_to_lambmubuoyancy as get_lame
+@@ -153,6 +153,11 @@ def landscape_sources(
+     grid = torch.cartesian_prod(horz_grid, deep_grid)
+     return grid[:, None, :].to(device)
+ 
++def get_grid_limits(*, sy, ny, dy, sx, nx, dx):
++    max_y = sy + ny * dy
++    max_x = sx + nx * dx
++    return [sy, max_y, max_x, sx]
++    # return [sy, sx, max_y, max_x]
+ 
+ def ricker_sources(
+     *,
+@@ -255,6 +260,19 @@ def load_scale_resample(
+     return u.squeeze(0).squeeze(0)
+ 
+ 
++# var1_ref * var2_ref = var1_actual * var2_actual = const
++# -> return var2_actual = const / var1_actual
++def const_prod_rescale(
++    *,
++    var1_ref: float,
++    var2_ref: float,
++    var1_actual: float
++):
++    const_prod = var1_ref * var2_ref
++    return const_prod / var1_actual
++    
++
++
+ def easy_elastic(
+     *,
+     vp: torch.Tensor,
+@@ -283,6 +301,18 @@ def easy_elastic(
+         **kw,
+     )
+ 
++class MyL2Loss(torch.nn.Module):
++    def __init__(self, ref_data):
++        super().__init__()
++        self.ref_data = ref_data
++    
++    def forward(self, data):
++        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
++        assert tmp.shape == data.shape, f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
++        diff = tmp - data
++        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
++        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
++        return v
+ 
+ def elastic_landscape_loop(c):
+     def forward(s):
+@@ -320,13 +350,7 @@ def elastic_landscape_loop(c):
+         final_obs = torch.stack(u[-2:], dim=-1).to(c.device)
+         return wavefield, final_obs
+ 
+-    def loss(a, b):
+-        tmp = a.repeat(b.shape[0], 1, 1, 1)
+-        assert tmp.shape == b.shape, f'{a.shape=}, {tmp.shape=}, {b.shape=}'
+-        diff = tmp - b
+-        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
+-        assert v.shape[0] == b.shape[0], f'{v.shape=}, {b.shape=}'
+-        return v
++
+ 
+     idxs = torch.arange(0, c.rt.src_loc.y.shape[0], c.batch_size)
+     if idxs[-1] != c.rt.src_loc.y.shape[0]:
+@@ -363,10 +387,13 @@ def elastic_landscape_loop(c):
+         print(msg, flush=True)
+ 
+     start_time = time()
++    
++    my_loss = c.rt.loss.constructor(ref_data, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {}))
++    # c = runtime_reduce(c, )
+     for i, s in enumerate(slices):
+         report_progress(i)
+         final_wavefields[s], obs[s] = forward(s)
+-        errors[s] = loss(ref_data, obs[s]).view(*errors[s].shape)
++        errors[s] = my_loss(obs[s]).view(*errors[s].shape)
+     total_forward_solve_time = time() - start_time
+     avg_forward_solve_time = total_forward_solve_time / c.rt.src_loc.y.shape[0]
+     print(
+@@ -395,10 +422,53 @@ def rel2abs(*, rel_coords, diff, start=0.0):
+     return [true_min, true_max]
+ 
+ 
+-def rel2abs_extent(*, lower_left, upper_right, diff):
+-    abs_lower_left = rel2abs(rel_coords=lower_left, diff=diff)
+-    abs_upper_right = rel2abs(rel_coords=upper_right, diff=diff)
+-    return abs_lower_left + abs_upper_right
++def rel2abs_extent(*, lower_left, upper_right, ny, nx, dy, dx, sy=0.0, sx=0.0):
++    # we assume here that y = "horizontal" and x = "vertical"
++    # This is just to remain consistent with the rest of the code
++    # despite it being nonsensical notation.
++    # Furthermore, we assume POSITIVE depth cooridnate points DOWNWARDS
++    # Hence just think about this and it's not that bad, even if the formulae
++    # below look weird.
++    
++    # for clarity we write
++    #     y <--> horz
++    #    x <--> depth
++    
++    min_horz = sy + lower_left[0] * dy * ny
++    max_horz = sy + upper_right[0] * dy * ny
++    
++    min_depth = sx + upper_right[1] * dx * nx
++    max_depth = sx + lower_left[1] * dx * nx
++    
++    
++    # input(f'{lower_left=}, {upper_right=}, {ny=}, {nx=}, {dy=}, {dx=}, {sy=}, {sx=}')
++    # input(f'    ----> {min_horz=}, {max_horz=}, {min_depth=}, {max_depth=}')
++    
++    # res = [min_horz, max_horz, min_depth, max_depth]
++    # input(f'{res=}')
++    return [min_horz, max_horz, min_depth, max_depth]
++
++
++def add_box(coords, **kw):
++    """
++    Adds a rectangular box to the current plot.
++    
++    Parameters:
++        coords: List or array of the form [xmin, xmax, ymin, ymax].
++        color: Color of the box's edge.
++        linewidth: Thickness of the box's edge.
++    """
++    xmin, xmax, ymin, ymax = coords
++    # Calculate the width and height
++    width = xmax - xmin
++    height = ymax - ymin
++    
++    # kw['facecolor'] = 'none'
++    # Create the rectangle
++    rect = patches.Rectangle((xmin, ymin), width, height, **kw)
++    # Add the rectangle to the current axis
++    ax = plt.gca()
++    ax.add_patch(rect)
+ 
+ 
+ def abs_label(*, label, unit):
+@@ -506,15 +576,16 @@ def plot_landscape(c: DotDict, *, path):
+     # errors_flat = errors.view(-1)
+ 
+     def plot_errors():
++        plt.clf()
+         easy_imshow(
+             errors.cpu(),
+             path=pj(path, opts.errors.other.filename),
+-            extent=[0.6, 0.4, 0.4, 0.6],
+             **opts.errors.filter(exclude=['other']),
+         )
+         plt.clf()
+ 
+     def plot_medium():
++        plt.clf()
+         def toggle_subplot(i):
+             plt.subplot(*subp_med.shape, subp_med.order[i - 1])
+ 
+@@ -534,11 +605,38 @@ def plot_landscape(c: DotDict, *, path):
+         filename = f'{pj(path, opts.medium.filename)}.png'
+         plt.savefig(filename)
+         print(f'Saved vp,vs,rho to {filename}')
++        plt.clf()
+ 
+     def plot_wavefields():
++        plt.clf()
+         def plotter(*, data, idx, fig, axes):
+-            yx, yy = src_loc_y[idx[0], idx[1]].tolist()
+-            xx, xy = src_loc_x[idx[0], idx[1]].tolist()
++            yx, yy = src_loc_y[idx[1], idx[0]].tolist()
++            xx, xy = src_loc_x[idx[1], idx[0]].tolist()
++
++            # yx, yy = src_loc_y[idx[1], idx[0]].tolist()
++            # xx, xy = src_loc_x[idx[1], idx[0]].tolist()
++            
++            yx = c.grid.dx * yx
++            xx = c.grid.dx * xx
++            
++            yy = c.grid.dy * yy
++            xy = c.grid.dy * xy
++            
++            # input(f'{yx=}, {yy=}')
++            # input(f'{xx=}, {xy=}')
++            
++
++            # input(f'{yx=}, {yy=}, {xx=}, {xy=}')
++            # input([yx, yy, xx, xy])
++            
++            # if 'extent' in opts.wavefields.y:
++            #     yy *= c.grid.dy
++            #     xy *= c.grid.dy
++                
++            #     xx *= c.grid.dx
++            #     yx *= c.grid.dx             
++                
++                # input([yy, xy, yx, xx])  
+ 
+             subp_wave = opts.wavefields.subplot
+             if 'other' in opts.wavefields.y and opts.wavefields.y.other.get(
+@@ -549,16 +647,19 @@ def plot_landscape(c: DotDict, *, path):
+ 
+             plt.clf()
+             plt.subplot(*subp_wave.shape, subp_wave.order[0])
+-            plt.scatter([yx], [yy], **opts.wavefields.y.other.marker)
++            plt.scatter([yy], [yx], **opts.wavefields.y.other.marker)
+             easy_imshow(
+                 data[idx][..., 0].cpu().T, **opts.wavefields.y.filter(['other'])
+             )
++            add_box(c.postprocess.plt.errors.extent, **c.postprocess.plt.wavefields.y.other.box)
+ 
+             plt.subplot(*subp_wave.shape, subp_wave.order[1])
+-            plt.scatter([xx], [xy], **opts.wavefields.x.other.marker)
++            plt.scatter([xy], [xx], **opts.wavefields.x.other.marker)
+             easy_imshow(
+                 data[idx][..., 1].cpu().T, **opts.wavefields.x.filter(['other'])
+             )
++            add_box(c.postprocess.plt.errors.extent, **c.postprocess.plt.wavefields.x.other.box)
++
+ 
+         subp_wave = opts.wavefields.subplot
+         fopts_wave = opts.wavefields.frames
+@@ -578,8 +679,10 @@ def plot_landscape(c: DotDict, *, path):
+         filename = pj(path, opts.wavefields.filename)
+         save_frames(frames, path=filename)
+         print(f'\nSaved wavefields to {pj(path, f"{filename}.gif")}\n')
++        plt.clf()
+ 
+     def plot_obs():
++        plt.clf()
+         def plotter_obs(*, data, idx, fig, axes):
+             subp_obs = opts.obs.subplot
+             if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
+@@ -612,6 +715,7 @@ def plot_landscape(c: DotDict, *, path):
+         filename_obs = pj(path, opts.obs.filename)
+         save_frames(frames, path=filename_obs)
+         print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
++        plt.clf()
+ 
+     rt_error_list = []
+ 
+diff --git a/iomt/alan/nohup.sh b/iomt/alan/nohup.sh
+index 4463443..bc01278 100755
+--- a/iomt/alan/nohup.sh
++++ b/iomt/alan/nohup.sh
+@@ -5,22 +5,24 @@ python_args=("-W" "ignore")
+ hydra_args=(
+     "gen_landscape.py"
+     "static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar"
+-    "grid.ny=500"
+-    "grid.nx=500"
+-    "grid.nt=4000"
+-    "grid.dy=28.0"
+-    "grid.dx=6.0"
+-    "src.n_horz=7"
+-    "src.n_deep=7"
+-    "gpu='cuda:1'"
+-    "batch_size=250"
++    # "grid.ny=500,3400"
++    # "grid.nx=500,700"
++    # "grid.nt=2000,3000,4000"
++    "grid.ny=700"
++    "grid.nx=700"
++    "grid.nt=3000"
++    "src.n_horz=11"
++    "src.n_deep=11"
++    "gpu='cuda:0'"
++    "batch_size=50"
+     "src.lower_left=[0.4,0.6]"
+     "src.upper_right=[0.6,0.4]"
+-    "rt/vp=hom"
+-    "rt/vs=hom"
+-    "rt/rho=hom"
++    # "rt/vp=hom"
++    # "rt/vs=hom"
++    # "rt/rho=hom"
+     "dupe=true"
+     "editor=null"
++    # "--multirun"
+ )
+ 
+ # Run the command with nohup and capture the PID
+@@ -32,6 +34,7 @@ if [ "$NOHUP_MODE" == "0" ]; then
+     python "${python_args[@]}" "${hydra_args[@]}"
+     exit 0
+ else
++    echo "${hydra_args[@]}"
+     nohup python "${python_args[@]}" "${hydra_args[@]}" >nohup.out 2>&1 &
+ fi
+********************************************************************************

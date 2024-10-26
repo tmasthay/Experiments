@@ -1,0 +1,5 @@
+- src.n_horz=25
+- src.n_deep=25
+- grid.nx=1000
+- grid.ny=1000
+- grid.nt=3000

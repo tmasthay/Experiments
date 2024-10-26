@@ -1,0 +1,322 @@
+HASH: 6fcb58d8b3dbdbdb69c581fc711e40cbe1001c01
+BRANCH: main
+
+UNTRACKED FILES: .latest
+.vscode/settings.json
+basic.py
+cfg/.vscode/settings.json
+cfg_gen/.vscode/settings.json
+cfg_gen/case/.vscode/settings.json
+cfg_gen/resolve_order/.vscode/settings.json
+cfg_gen/rt/.vscode/settings.json
+cfg_gen/rt/loss/l2.yaml
+cfg_gen/rt/loss/w1.yaml
+cfg_gen/rt/loss/w2.yaml
+cfg_gen/static/.vscode/settings.json
+nohup.out
+res.jpg
+run2.sh
+tmp.png
+tmp.py
+tmp/cfg/cfg.yaml
+tmp/landscape.jpg
+tmp/main.py
+tmp/outputs/2024-10-24/23-50-55/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-50-55/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-50-55/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-50-55/test_w1.log
+tmp/outputs/2024-10-24/23-51-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-51-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-51-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-51-12/main.log
+tmp/outputs/2024-10-24/23-52-18/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-52-18/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-52-18/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-52-18/main.log
+tmp/outputs/2024-10-24/23-52-41/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-52-41/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-52-41/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-52-41/main.log
+tmp/outputs/2024-10-24/23-57-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-12/main.log
+tmp/outputs/2024-10-24/23-57-20/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-20/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-20/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-20/main.log
+tmp/outputs/2024-10-24/23-57-39/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-57-39/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-57-39/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-57-39/main.log
+tmp/outputs/2024-10-24/23-58-01/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-01/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-01/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-01/main.log
+tmp/outputs/2024-10-24/23-58-12/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-12/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-12/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-12/main.log
+tmp/outputs/2024-10-24/23-58-47/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-58-47/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-58-47/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-58-47/main.log
+tmp/outputs/2024-10-24/23-59-01/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-01/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-01/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-01/main.log
+tmp/outputs/2024-10-24/23-59-26/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-26/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-26/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-26/main.log
+tmp/outputs/2024-10-24/23-59-44/.hydra/config.yaml
+tmp/outputs/2024-10-24/23-59-44/.hydra/hydra.yaml
+tmp/outputs/2024-10-24/23-59-44/.hydra/overrides.yaml
+tmp/outputs/2024-10-24/23-59-44/main.log
+tmp/outputs/2024-10-25/00-10-24/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-24/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-24/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-24/main.log
+tmp/outputs/2024-10-25/00-10-38/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-38/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-38/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-38/main.log
+tmp/outputs/2024-10-25/00-10-58/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-10-58/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-10-58/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-10-58/main.log
+tmp/outputs/2024-10-25/00-11-27/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-11-27/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-11-27/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-11-27/main.log
+tmp/outputs/2024-10-25/00-24-43/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-24-43/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-24-43/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-24-43/main.log
+tmp/outputs/2024-10-25/00-24-53/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-24-53/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-24-53/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-24-53/main.log
+tmp/outputs/2024-10-25/00-27-39/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-27-39/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-27-39/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-27-39/main.log
+tmp/outputs/2024-10-25/00-33-51/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-33-51/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-33-51/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-33-51/main.log
+tmp/outputs/2024-10-25/00-34-05/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-34-05/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-34-05/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-34-05/main.log
+tmp/outputs/2024-10-25/00-36-06/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-06/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-06/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-06/main.log
+tmp/outputs/2024-10-25/00-36-40/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-40/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-40/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-40/main.log
+tmp/outputs/2024-10-25/00-36-50/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-36-50/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-36-50/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-36-50/main.log
+tmp/outputs/2024-10-25/00-37-25/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-37-25/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-37-25/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-37-25/main.log
+tmp/outputs/2024-10-25/00-38-26/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-38-26/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-38-26/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-38-26/main.log
+tmp/outputs/2024-10-25/00-39-11/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-39-11/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-39-11/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-39-11/main.log
+tmp/outputs/2024-10-25/00-42-41/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-42-41/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-42-41/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-42-41/main.log
+tmp/outputs/2024-10-25/00-48-52/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-48-52/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-48-52/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-48-52/main.log
+tmp/outputs/2024-10-25/00-49-21/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-49-21/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-49-21/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-49-21/main.log
+tmp/outputs/2024-10-25/00-51-40/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-51-40/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-51-40/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-51-40/main.log
+tmp/outputs/2024-10-25/00-52-06/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-06/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-06/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-06/main.log
+tmp/outputs/2024-10-25/00-52-32/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-32/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-32/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-32/main.log
+tmp/outputs/2024-10-25/00-52-49/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-52-49/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-52-49/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-52-49/main.log
+tmp/outputs/2024-10-25/00-53-38/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-53-38/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-53-38/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-53-38/main.log
+tmp/outputs/2024-10-25/00-54-58/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-54-58/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-54-58/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-54-58/main.log
+tmp/outputs/2024-10-25/00-55-46/.hydra/config.yaml
+tmp/outputs/2024-10-25/00-55-46/.hydra/hydra.yaml
+tmp/outputs/2024-10-25/00-55-46/.hydra/overrides.yaml
+tmp/outputs/2024-10-25/00-55-46/main.log
+tmp/raw_data.gif
+tmp/test_w1.py
+
+********************************************************************************
+DIFF: diff --git a/iomt/alan/helpers.py b/iomt/alan/helpers.py
+index 72823a0..f3cbeaa 100644
+--- a/iomt/alan/helpers.py
++++ b/iomt/alan/helpers.py
+@@ -14,6 +14,8 @@ from mh.typlotlib import (  # noqa: F401
+ )  # noqa: F401
+ from time import time
+ import torch.nn.functional as F
++from misfit_toys.utils import tslice
++from returns.curry import curry
+ 
+ 
+ def frames_to_strides(*shape, none_dims=None, max_frames):
+@@ -269,6 +271,10 @@ def const_prod_rescale(*, var1_ref: float, var2_ref: float, var1_actual: float):
+     return const_prod / var1_actual
+ 
+ 
++def int_scale(*, ref: int, scale: float = 1.0):
++    return int(ref * scale)
++
++
+ def easy_elastic(
+     *,
+     vp: torch.Tensor,
+@@ -386,6 +392,7 @@ def elastic_landscape_loop(c):
+ 
+     start_time = time()
+ 
++    # ref_data = ref_data.permute(0, 3, 1, 2)
+     my_loss = c.rt.loss.constructor(
+         ref_data, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {})
+     )
+@@ -393,7 +400,10 @@ def elastic_landscape_loop(c):
+     for i, s in enumerate(slices):
+         report_progress(i)
+         final_wavefields[s], obs[s] = forward(s)
++        v = my_loss(obs[s])
++        # raise ValueError(f'{v.shape=}, {errors[s].shape=}')
+         errors[s] = my_loss(obs[s]).view(*errors[s].shape)
++    assert errors.min() <= 1e-8, f'{errors.min()=}'
+     total_forward_solve_time = time() - start_time
+     avg_forward_solve_time = total_forward_solve_time / c.rt.src_loc.y.shape[0]
+     print(
+@@ -410,6 +420,47 @@ def elastic_landscape_loop(c):
+     )
+ 
+ 
++class EasyW1Loss(torch.nn.Module):
++    def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
++        super().__init__()
++        if renorm is None:
++            renorm = torch.abs
++
++        self.renorm = renorm
++        self.dim = dim
++        self.eps = eps
++        self.cdf = self.__cdf__(ref_data, renorm=renorm, eps=eps, dim=dim)
++        # input(f'{self.cdf.shape=}')
++
++    @staticmethod
++    def __cdf__(data, *, renorm, dim=-1, eps=1e-8):
++        pdf = renorm(data)
++        assert pdf.min() >= 0.0, f'{pdf.min()=}, should be >= 0.0'
++
++        v = torch.cumulative_trapezoid(pdf, dim=dim)
++        assert torch.isnan(v).sum() == 0, f'{v=}'
++        divider = tslice(v, dims=[dim]).unsqueeze(dim)
++        assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
++        u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
++        assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
++        assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
++        return u
++
++    def forward(self, data: torch.Tensor) -> torch.Tensor:
++        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
++        # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
++        # diff = (lcl_cdf - self.cdf).abs()
++        # return torch.sum(diff**2, dim=self.dim)
++        diff = lcl_cdf - self.cdf
++        integrand = diff**2
++        res = torch.mean(integrand, dim=self.dim)
++        
++        # consider refactoring later if you want
++        res_flat = res.view(res.shape[0], -1)
++        return res_flat.mean(dim=1)
++        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
++
++
+ def rel_label(*, label, diff, num, unit):
+     max_val = diff * num
+     return f'{label} ({max_val:.2e} {unit})'
+diff --git a/iomt/alan/nohup.sh b/iomt/alan/nohup.sh
+index bc01278..81dda9b 100755
+--- a/iomt/alan/nohup.sh
++++ b/iomt/alan/nohup.sh
+@@ -1,9 +1,9 @@
+ #!/usr/bin/bash
+ 
+ # Define Python and Hydra arguments as arrays
+-python_args=("-W" "ignore")
++# python_args=("-W" "ignore")
++python_args=("gen_landscape.py")
+ hydra_args=(
+-    "gen_landscape.py"
+     "static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar"
+     # "grid.ny=500,3400"
+     # "grid.nx=500,700"
+@@ -11,17 +11,18 @@ hydra_args=(
+     "grid.ny=700"
+     "grid.nx=700"
+     "grid.nt=3000"
+-    "src.n_horz=11"
+-    "src.n_deep=11"
++    "src.n_horz=21"
++    "src.n_deep=21"
+     "gpu='cuda:0'"
+-    "batch_size=50"
++    "batch_size=10"
+     "src.lower_left=[0.4,0.6]"
+     "src.upper_right=[0.6,0.4]"
+-    # "rt/vp=hom"
+-    # "rt/vs=hom"
+-    # "rt/rho=hom"
++    "rt/vp=hom"
++    "rt/vs=hom"
++    "rt/rho=hom"
+     "dupe=true"
+     "editor=null"
++    "rt/loss=w1"
+     # "--multirun"
+ )
+ 
+@@ -32,9 +33,8 @@ NOHUP_MODE="1"
+ # if $1 == "0" then run directly
+ if [ "$NOHUP_MODE" == "0" ]; then
+     python "${python_args[@]}" "${hydra_args[@]}"
+-    exit 0
+ else
+-    echo "${hydra_args[@]}"
++    echo "python ${python_args[@]} ${hydra_args[@]}"
+     nohup python "${python_args[@]}" "${hydra_args[@]}" >nohup.out 2>&1 &
+ fi
+********************************************************************************
