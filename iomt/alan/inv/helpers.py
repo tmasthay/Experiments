@@ -16,7 +16,6 @@ from time import time
 import torch.nn.functional as F
 from misfit_toys.utils import tslice
 from returns.curry import curry
-from misfit_toys.fwi.seismic_data import ParamConstrained, Param
 
 
 def frames_to_strides(*shape, none_dims=None, max_frames):
@@ -311,6 +310,22 @@ def easy_elastic(
     )
 
 
+class MyL2Loss(torch.nn.Module):
+    def __init__(self, ref_data):
+        super().__init__()
+        self.ref_data = ref_data
+
+    def forward(self, data):
+        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
+        assert (
+            tmp.shape == data.shape
+        ), f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
+        diff = tmp - data
+        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
+        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
+        return v
+
+
 def elastic_landscape_loop(c):
     def forward(s):
         # vp,vs,rho technically
@@ -409,6 +424,48 @@ def elastic_landscape_loop(c):
     return DotDict(
         {'final_wavefields': final_wavefields, 'obs': obs, 'errors': errors}
     )
+
+
+class EasyW1Loss(torch.nn.Module):
+    def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
+        super().__init__()
+        if renorm is None:
+            renorm = torch.abs
+
+        self.renorm = renorm
+        self.dim = dim
+        self.eps = eps
+        self.cdf = self.__cdf__(ref_data, renorm=renorm, eps=eps, dim=dim)
+        # input(f'{self.cdf.shape=}')
+
+    @staticmethod
+    def __cdf__(data, *, renorm, dim=-1, eps=1e-8):
+        pdf = renorm(data)
+        assert pdf.min() >= 0.0, f'{pdf.min()=}, should be >= 0.0'
+
+        v = torch.cumulative_trapezoid(pdf, dim=dim)
+        assert torch.isnan(v).sum() == 0, f'{v=}'
+        divider = tslice(v, dims=[dim]).unsqueeze(dim)
+        assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
+        u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
+        assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
+        assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
+        return u
+
+    def forward(self, data: torch.Tensor) -> torch.Tensor:
+        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
+        # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
+        # diff = (lcl_cdf - self.cdf).abs()
+        # return torch.sum(diff**2, dim=self.dim)
+        diff = lcl_cdf - self.cdf
+        integrand = diff**2
+        res = torch.mean(integrand, dim=self.dim)
+        
+        # consider refactoring later if you want something
+        # more general, but for now this is fine
+        res_flat = res.view(res.shape[0], -1)
+        return res_flat.mean(dim=1)
+        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
 
 
 def rel_label(*, label, diff, num, unit):
@@ -576,15 +633,7 @@ def plot_landscape(c: DotDict, *, path):
     # errors_flat = errors.view(-1)
 
     def plot_errors():
-        nonlocal errors
         plt.clf()
-        # u = torch.clamp(errors, max=5000.0)
-        scale = c.postprocess.plt.errors.other.get('scale', None)
-        if scale is not None: 
-            if scale.name == 'log':
-                errors = torch.log10(1.0 + errors)
-            elif scale.name == 'clamp': 
-                errors = torch.clamp(errors, **scale.filter(['name']))
         easy_imshow(
             errors.cpu(),
             path=pj(path, opts.errors.other.filename),
@@ -763,110 +812,3 @@ def plot_landscape(c: DotDict, *, path):
         add_err('Error plotting obs', traceback.format_exc())
 
     return '\n'.join(rt_error_list)
-
-class SourceAmplitudes(torch.nn.Module):
-    def __init__(
-        self,
-        *,
-        ny: int,
-        nx: int,
-        init_loc0: float,
-        init_loc1: float,
-        halfwidth: int,
-        beta: float,
-        source_trace: torch.Tensor,
-        trainable: bool = True,
-    ):
-        super().__init__()
-        self.ny = ny
-        self.nx = nx
-        self.trainable = trainable
-        if trainable:
-            self.loc = ParamConstrained(
-                p=torch.tensor([init_loc0, init_loc1]),
-                minv=0,
-                maxv=min(ny, nx),
-                requires_grad=True,
-            )
-        else:
-            self.loc = Param(
-                p=torch.tensor([init_loc0, init_loc1]), requires_grad=False
-            )
-        self.source_trace = source_trace
-        self.device = source_trace.device
-        self.dtype = source_trace.dtype
-        self.halfwidth = halfwidth
-        self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
-
-    def _get_weight(self, loc, n):
-        x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        bessel_arg = torch.relu(self.beta * (1 - (x / self.halfwidth) ** 2)) ** 0.5
-        bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
-        return bessel_term * torch.sinc(x)
-
-    def forward(self):
-        loc = self.loc()
-        return (
-            self.source_trace[:, None]
-            * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
-            * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
-        ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
-                
-class EasyW1Loss(torch.nn.Module):
-    def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
-        super().__init__()
-        if renorm is None:
-            renorm = torch.abs
-
-        self.renorm = renorm
-        self.dim = dim
-        self.eps = eps
-        self.cdf = self.__cdf__(ref_data, renorm=renorm, eps=eps, dim=dim)
-        # input(f'{self.cdf.shape=}')
-
-    @staticmethod
-    def __cdf__(data, *, renorm, dim=-1, eps=1e-8):
-        pdf = renorm(data)
-        assert pdf.min() >= 0.0, f'{pdf.min()=}, should be >= 0.0'
-
-        v = torch.cumulative_trapezoid(pdf, dim=dim)
-        assert torch.isnan(v).sum() == 0, f'{v=}'
-        divider = tslice(v, dims=[dim]).unsqueeze(dim)
-        assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
-        u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
-        assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
-        assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
-        return u
-
-    def forward(self, data: torch.Tensor) -> torch.Tensor:
-        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
-        # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
-        # diff = (lcl_cdf - self.cdf).abs()
-        # return torch.sum(diff**2, dim=self.dim)
-        diff = lcl_cdf - self.cdf
-        integrand = diff**2
-        res = torch.mean(integrand, dim=self.dim)
-        
-        # consider refactoring later if you want something
-        # more general, but for now this is fine
-        res_flat = res.view(res.shape[0], -1)
-        return res_flat.mean(dim=1)
-        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
-
-class MyL2Loss(torch.nn.Module):
-    def __init__(self, ref_data):
-        super().__init__()
-        self.ref_data = ref_data
-
-    def forward(self, data):
-        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
-        assert (
-            tmp.shape == data.shape
-        ), f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
-        diff = tmp - data
-        rescale_factor = diff.shape[0] / diff.numel()
-        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1) * rescale_factor
-        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
-        return v
-
-

@@ -13,7 +13,7 @@ from omegaconf import OmegaConf, DictConfig
 from dotmap import DotMap
 from mh.core import hydra_out, DotDict
 from misfit_toys.swiffer import dupe
-
+from helpers import EasyW1Loss
 
 def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
     if torch.isnan(u).any():
@@ -161,11 +161,13 @@ def main(cfg: DictConfig):
 
         return u
 
+    input(ref_amplitudes().cpu().shape)
     obs_data_true = forward(amps=ref_amplitudes(), msg='True')
 
     optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
-    loss = torch.nn.MSELoss()
+    # loss = torch.nn.MSELoss()
+    loss = EasyW1Loss(obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20))
 
     num_frames = 10
     save_freq = max(1, c.n_epochs // num_frames)
@@ -186,7 +188,8 @@ def main(cfg: DictConfig):
             num_calls += 1
             optimizer.zero_grad()
             obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
-            loss_val = loss(obs_data, obs_data_true)
+            # loss_val = loss(obs_data, obs_data_true)
+            loss_val = loss(obs_data).sum()
             loss_val.backward()
             if num_calls == 1 and epoch % save_freq == 0:
                 param_history.append(source_amplitudes())
