@@ -162,6 +162,34 @@ def get_grid_limits(*, sy, ny, dy, sx, nx, dx):
     max_x = sx + nx * dx
     return [sy, max_y, max_x, sx]
     # return [sy, sx, max_y, max_x]
+    
+def preload_data(*, root, device):
+    def get(x):
+        path = pj(root, x.replace('.pt', '') + '.pt')
+        return torch.load(path, map_location=device)
+
+    d = DotDict()
+    d.vp = get('vp')
+    d.vs = get('vs')
+    d.rho = get('rho')
+    
+    d.src_amp = DotDict()
+    d.src_amp.y = get('src_amp_y')
+    d.src_amp.x = get('src_amp_x')
+    
+    d.src_loc = DotDict()
+    d.src_loc.x = get('src_loc_x')
+    d.src_loc.y = get('src_loc_y')
+    
+    d.rec_loc = DotDict()
+    d.rec_loc.x = get('rec_loc_x')
+    d.rec_loc.y = get('rec_loc_y')
+    
+    d.res = DotDict()
+    d.res.errors = get('errors')
+    d.res.obs = get('obs')
+    
+    return d
 
 
 def ricker_sources(
@@ -310,6 +338,12 @@ def easy_elastic(
         **kw,
     )
 
+def preloaded_landscape_loop(c):
+    obs = c.rt.data.obs_data
+    raise ValueError(f'{obs.shape=})')
+    # my_loss = c.rt.loss.constructor(
+    #     c.rt.
+    # )
 
 def elastic_landscape_loop(c):
     def forward(s):
@@ -756,6 +790,131 @@ def plot_landscape(c: DotDict, *, path):
         plot_wavefields()
     except:
         add_err('Error plotting wavefields', traceback.format_exc())
+
+    try:
+        plot_obs()
+    except:
+        add_err('Error plotting obs', traceback.format_exc())
+
+    return '\n'.join(rt_error_list)
+
+def plot_landscape_no_wavefields(c: DotDict, *, path):
+    assert 'rt' in c
+    assert 'data' in c.rt
+    assert 'res' in c.rt.data
+
+    d = c.rt.data
+    res = d.res
+    obs = res.obs
+    errors = res.errors
+
+    opts = c.postprocess.plt
+
+    src_loc_y = (
+        d.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
+    )
+    src_loc_x = (
+        d.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
+    )
+    # errors_flat = errors.view(-1)
+
+    def plot_errors():
+        nonlocal errors
+        plt.clf()
+        # u = torch.clamp(errors, max=5000.0)
+        scale = c.postprocess.plt.errors.other.get('scale', None)
+        if scale is not None: 
+            if scale.name == 'log':
+                errors = torch.log10(1.0 + errors)
+            elif scale.name == 'clamp': 
+                errors = torch.clamp(errors, **scale.filter(['name']))
+        easy_imshow(
+            errors.cpu(),
+            path=pj(path, opts.errors.other.filename),
+            **opts.errors.filter(exclude=['other']),
+        )
+        plt.clf()
+
+    def plot_medium():
+        plt.clf()
+
+        def toggle_subplot(i):
+            plt.subplot(*subp_med.shape, subp_med.order[i - 1])
+
+        subp_med = opts.medium.subplot
+        fig, axes = plt.subplots(*subp_med.shape, **subp_med.kw)
+        plt.suptitle(subp_med.suptitle)
+
+        toggle_subplot(1)
+        easy_imshow(d.vp.cpu().T, **opts.medium.vp.imshow)
+
+        toggle_subplot(2)
+        easy_imshow(d.vs.cpu().T, **opts.medium.vs.imshow)
+
+        toggle_subplot(3)
+        easy_imshow(d.rho.cpu().T, **opts.medium.rho.imshow)
+
+        filename = f'{pj(path, opts.medium.filename)}.png'
+        plt.savefig(filename)
+        print(f'Saved vp,vs,rho to {filename}')
+        plt.clf()
+
+    def plot_obs():
+        plt.clf()
+
+        def plotter_obs(*, data, idx, fig, axes):
+            subp_obs = opts.obs.subplot
+            if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
+                opts.obs.y.bound_data = data[..., 0]
+                opts.obs.x.bound_data = data[..., 1]
+
+            plt.clf()
+            plt.subplot(*subp_obs.shape, subp_obs.order[0])
+            easy_imshow(
+                data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
+            )
+
+            plt.subplot(*subp_obs.shape, subp_obs.order[1])
+            easy_imshow(
+                data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
+            )
+
+        subp_obs = opts.obs.subplot
+        fopts_obs = opts.obs.frames
+        fig, axes = plt.subplots(*subp_obs.shape, **subp_obs.kw)
+        strides = frames_to_strides(
+            *obs.shape,
+            none_dims=fopts_obs.iter.none_dims,
+            max_frames=fopts_obs.max_frames,
+        )
+        iter_obs = bool_slice(*obs.shape, **fopts_obs.iter, strides=strides)
+        frames = get_frames_bool(
+            data=obs, iter=iter_obs, plotter=plotter_obs, fig=fig, axes=axes
+        )
+        filename_obs = pj(path, opts.obs.filename)
+        save_frames(frames, path=filename_obs)
+        print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
+        plt.clf()
+
+    rt_error_list = []
+
+    def add_err(e, msg):
+        stars = 80 * '*'
+        rt_error_list.append(stars)
+        rt_error_list.append(msg)
+        rt_error_list.append(e)
+        rt_error_list.append(stars)
+        rt_error_list.append('\n\n')
+
+    try:
+        plot_errors()
+    except:
+        add_err('Error plotting errors', traceback.format_exc())
+
+    try:
+        plot_medium()
+    except:
+        add_err('Error plotting medium', traceback.format_exc())
 
     try:
         plot_obs()
