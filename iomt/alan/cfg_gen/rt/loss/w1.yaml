@@ -1,0 +1,5 @@
+constructor: ${dep.helpers} EasyW1Loss
+kw:
+  renorm: null
+  dim: 2
+  eps: 1.0

@@ -1,0 +1,10 @@
+defaults:
+- _self_
+- loss: l2
+
+data:
+  __call_pre__: ${dep.helpers} preload_data
+  root: ${oc.env:HOME}/Documents/.__DONT_DELETE__/marm2_fine
+  device: ${device}
+
+

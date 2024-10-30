@@ -1,0 +1,1 @@
+constructor: ${dep.helpers} MyL2Loss
