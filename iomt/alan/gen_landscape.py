@@ -197,6 +197,17 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         )
         assert non_rt_diff == {}, f'{c=}, {non_rt_diff=}, {cfg_orig=}'
 
+    c.assert_keys_present(
+        [
+            'rt.data.vp',
+            'rt.data.src_loc',
+            'rt.data.rec_loc',
+            'rt.data.src_amp',
+            'rt.data.vs',
+            'rt.data.rho',
+        ]
+    )
+
     def bnd_assert(bounds, val, name):
         assert (
             bounds[0] < val.min()
@@ -210,9 +221,11 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     bnd_assert(c.bounds.rho, c.rt.data.rho, 'rho')
 
     # Assert that the vp/vs ratio is within bounds
-    vp_vs = c.rt.data.vp / (1e-6 + c.rt.vs)
+    vp_vs = c.rt.data.vp / (1e-6 + c.rt.data.vs)
     assert not torch.isnan(vp_vs).any(), f'{vp_vs=}'
-    assert vp_vs.min() >= torch.sqrt(torch.tensor(2.0)), f'{vp_vs.min().item()=}'
+    assert vp_vs.min() >= torch.sqrt(
+        torch.tensor(2.0)
+    ), f'{vp_vs.min().item()=}'
 
     return c
 
@@ -263,7 +276,10 @@ def main(cfg: DictConfig):
             cutoff = 300
             absolute_cutoff = 86400
             if estimated_time > absolute_cutoff:
-                raise RuntimeError(f"Estimated time is {estimated_time:.2f} seconds...> {absolute_cutoff} seconds. Exiting...")
+                raise RuntimeError(
+                    f"Estimated time is {estimated_time:.2f} seconds...>"
+                    f" {absolute_cutoff} seconds. Exiting..."
+                )
             if (
                 not c.get('dupe', False)
                 and estimated_time > cutoff

@@ -338,8 +338,9 @@ def easy_elastic(
         **kw,
     )
 
-def preloaded_landscape_loop(c):
-    obs = c.rt.data.obs_data
+def preloaded_landscape_loop(c: DotDict):
+    # raise ValueError(f'{c.rt.data.flat_keys()=}')
+    obs = c.rt.data.res.obs
     raise ValueError(f'{obs.shape=})')
     # my_loss = c.rt.loss.constructor(
     #     c.rt.
