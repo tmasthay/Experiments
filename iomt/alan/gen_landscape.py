@@ -205,12 +205,12 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
             val.max() < bounds[1]
         ), f'{name}_max={val.max()}, upper={bounds[1]}'
 
-    bnd_assert(c.bounds.vp, c.rt.vp, 'vp')
-    bnd_assert(c.bounds.vs, c.rt.vs, 'vs')
-    bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
+    bnd_assert(c.bounds.vp, c.rt.data.vp, 'vp')
+    bnd_assert(c.bounds.vs, c.rt.data.vs, 'vs')
+    bnd_assert(c.bounds.rho, c.rt.data.rho, 'rho')
 
     # Assert that the vp/vs ratio is within bounds
-    vp_vs = c.rt.vp / (1e-6 + c.rt.vs)
+    vp_vs = c.rt.data.vp / (1e-6 + c.rt.vs)
     assert not torch.isnan(vp_vs).any(), f'{vp_vs=}'
     assert vp_vs.min() >= torch.sqrt(torch.tensor(2.0)), f'{vp_vs.min().item()=}'
 

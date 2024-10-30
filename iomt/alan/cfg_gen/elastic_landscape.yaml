@@ -3,6 +3,7 @@ defaults:
   - _self_
   - main: elastic_landscape
   - postprocess: elastic_landscape
+  - resolver_order: elastic_landscape
 
 dep:
   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
