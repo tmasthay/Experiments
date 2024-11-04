@@ -2,7 +2,7 @@ defaults:
   - _self_
   - theme: seismic_redstar
 
-clip: 0.05
+clip: 0.2
 
 unit: "m"
 
@@ -85,6 +85,8 @@ wavefields:
 
 obs:
   filename: obs
+  beta: 1.0
+  geo_scale: 2.0
 
   base_obs: &base_obs
     imshow: ${...theme.imshow}

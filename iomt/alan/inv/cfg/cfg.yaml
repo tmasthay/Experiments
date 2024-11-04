@@ -23,7 +23,10 @@ init_loc: [0.6, 0.5]
 
 pml_width: 20
 
-beta: [4.0, 4.0]
+beta_dummy: 1.0
+beta: 
+  - ${..beta_dummy}
+  - ${..beta_dummy}
 halfwidth: [70, 70]
 
 dupe: False

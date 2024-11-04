@@ -340,11 +340,47 @@ def easy_elastic(
 
 def preloaded_landscape_loop(c: DotDict):
     # raise ValueError(f'{c.rt.data.flat_keys()=}')
-    obs = c.rt.data.res.obs
-    raise ValueError(f'{obs.shape=})')
-    # my_loss = c.rt.loss.constructor(
-    #     c.rt.
-    # )
+    D = c.rt.data
+    obs = D.res.obs
+    obs_exp = obs.view(c.src.n_horz, c.src.n_deep, c.rec.n_recs, c.grid.nt, 2)
+    ref_obs = obs_exp[None, c.src.n_horz // 2, c.src.n_deep // 2, :, :, :]
+    # raise ValueError(f'{ref_obs.shape=}')
+    my_loss = c.rt.loss.constructor(
+        ref_obs, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {})
+    )
+    # raise ValueError(f'{my_loss=}')
+    
+    idxs = torch.arange(0, D.src_loc.y.shape[0], c.batch_size)
+    if idxs[-1] != D.src_loc.y.shape[0]:
+        idxs = torch.cat([idxs, torch.tensor([D.rec_loc.y.shape[0]])])
+    slices = [slice(idxs[i], idxs[i + 1]) for i in range(idxs.shape[0] - 1)]
+    errors = torch.rand(c.src.n_horz * c.src.n_deep, device=c.device) * 100.0
+    
+    num_slices = len(slices)
+    start_time = time()
+    
+    def report_progress(i):
+        msg = f'{i+1}/{num_slices}...'
+        if i > 0:
+            total_run_time = time() - start_time
+            avg_run_time = total_run_time / i
+            remaining_time = avg_run_time * (num_slices - i)
+            sep = '    '
+            msg += (
+                f'{sep}AVG: {avg_run_time:.2f}s'
+                f'{sep}TOTAL: {total_run_time:.2f}s'
+                f'{sep}ETR: {remaining_time:.2f}s'
+            )
+        # print(msg, flush=True, end='\r')
+        print(msg, flush=True)
+    
+    for i, s in enumerate(slices):
+        report_progress(i)
+        errors[s] = my_loss(obs[s])
+        
+    errors = errors.view(c.src.n_horz, c.src.n_deep)
+    
+    return DotDict({'errors': errors, 'obs': obs})
 
 def elastic_landscape_loop(c):
     def forward(s):
@@ -806,6 +842,7 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
 
     d = c.rt.data
     res = d.res
+    # input(f'{d.flat_keys()=}')
     obs = res.obs
     errors = res.errors
 
@@ -860,9 +897,15 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
         print(f'Saved vp,vs,rho to {filename}')
         plt.clf()
 
+    # this callback is much, much slower than it needs to be.
     def plot_obs():
         plt.clf()
 
+        t = torch.linspace(0.0, c.grid.dt * c.grid.nt, c.grid.nt)
+        beta = opts.obs.beta
+        geo_scale = opts.obs.geo_scale
+        plot_scale = (1 + beta * t)**geo_scale
+        ps_final = plot_scale[:, None]
         def plotter_obs(*, data, idx, fig, axes):
             subp_obs = opts.obs.subplot
             if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
@@ -872,12 +915,12 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
             plt.clf()
             plt.subplot(*subp_obs.shape, subp_obs.order[0])
             easy_imshow(
-                data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
+                ps_final * data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
             )
 
             plt.subplot(*subp_obs.shape, subp_obs.order[1])
             easy_imshow(
-                data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
+                ps_final * data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
             )
 
         subp_obs = opts.obs.subplot
@@ -996,6 +1039,7 @@ class EasyW1Loss(torch.nn.Module):
         u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
         assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
         assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
+        # input(f'{pdf.shape=}, {data.shape=}, {u.shape=}, {v.shape=}, {divider.shape=}')
         return u
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
@@ -1003,6 +1047,7 @@ class EasyW1Loss(torch.nn.Module):
         # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
         # diff = (lcl_cdf - self.cdf).abs()
         # return torch.sum(diff**2, dim=self.dim)
+        # input(f'{lcl_cdf.shape=}, {self.cdf.shape=}')
         diff = lcl_cdf - self.cdf
         integrand = diff**2
         res = torch.mean(integrand, dim=self.dim)

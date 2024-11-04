@@ -273,7 +273,7 @@ def main(cfg: DictConfig):
             )
 
             # five minute cutoff before we actually query. Else just run.
-            cutoff = 300
+            cutoff = torch.inf
             absolute_cutoff = 86400
             if estimated_time > absolute_cutoff:
                 raise RuntimeError(
@@ -289,7 +289,7 @@ def main(cfg: DictConfig):
                 print('Exiting...')
                 return
             begin_time = time()
-            c.rt.res = c.main.callback(c)
+            c.rt.data.res = c.main.callback(c)
             total_time = time() - begin_time
         except Exception as e:
             # print(f'Error: {e}')

@@ -14,6 +14,7 @@ from dotmap import DotMap
 from mh.core import hydra_out, DotDict
 from misfit_toys.swiffer import dupe
 from helpers import EasyW1Loss
+from scipy.optimize import minimize
 
 def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
     if torch.isnan(u).any():
@@ -25,6 +26,74 @@ def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
             f' "{name}"\n{msg}\n{n_nans}/{u.numel()} ({percent_nans:.2f}%)'
         )
 
+
+class SourceAmplitudesLegacy(torch.nn.Module):
+    def __init__(
+        self,
+        *,
+        ny: int,
+        nx: int,
+        init_loc0: float,
+        init_loc1: float,
+        halfwidth: int,
+        beta: float,
+        source_trace: torch.Tensor,
+        trainable: bool = True,
+    ):
+        super().__init__()
+        self.ny = ny
+        self.nx = nx
+        self.trainable = trainable
+        if trainable:
+            # self.loc = ParamConstrained(
+            #     p=torch.tensor([init_loc0, init_loc1]),
+            #     minv=0,
+            #     maxv=min(ny, nx),
+            #     requires_grad=True,
+            # )
+            self.loc = Param(
+                p=torch.tensor([init_loc0, init_loc1]), requires_grad=True
+            )
+        else:
+            self.loc = Param(
+                p=torch.tensor([init_loc0, init_loc1]), requires_grad=False
+            )
+        self.source_trace = source_trace
+        self.device = source_trace.device
+        self.dtype = source_trace.dtype
+        self.halfwidth = halfwidth
+        self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
+
+    def _get_weight(self, loc, n):
+        # input(f'{loc()=}, {n=}')
+        x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
+        # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
+        bessel_arg = torch.zeros(x.shape, device=self.device, dtype=self.dtype)
+        idx = x.abs() <= self.halfwidth
+        bessel_arg[idx] = (
+            self.beta * (1 - (x[idx] / self.halfwidth) ** 2).sqrt()
+        )
+
+        assert not torch.isnan(bessel_arg).any()
+        # input(f'{bessel_arg.max()}, {bessel_arg.min()}, {torch.i0( bessel_arg).max()}, {torch.i0(bessel_arg).min()}, {torch.i0(self.beta)}')
+        # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2)
+        # bessel_arg = bessel_arg.nan_to_num(nan=0.0)
+        bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta)
+
+        assert not torch.sinc(x).isnan().any(), f'{x.min()}, {x.max()}'
+        assert not bessel_term.isnan().any()
+        # input(bessel_term.max())
+        # bessel_term[x.abs() > self.halfwidth] = 0.0
+        return bessel_term * torch.sinc(x)
+
+    def forward(self):
+        loc = self.loc()
+        # input(f'{loc[0].item()=}, {loc[1].item()=}')
+        return (
+            self.source_trace[:, None]
+            * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
+            * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
+        ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
 
 class SourceAmplitudes(torch.nn.Module):
     def __init__(
@@ -44,11 +113,8 @@ class SourceAmplitudes(torch.nn.Module):
         self.nx = nx
         self.trainable = trainable
         if trainable:
-            self.loc = ParamConstrained(
-                p=torch.tensor([init_loc0, init_loc1]),
-                minv=0,
-                maxv=min(ny, nx),
-                requires_grad=True,
+            self.loc = Param(
+                p=torch.tensor([init_loc0, init_loc1]), requires_grad=True
             )
         else:
             self.loc = Param(
@@ -61,22 +127,28 @@ class SourceAmplitudes(torch.nn.Module):
         self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
 
     def _get_weight(self, loc, n):
+        
+        # Linear interpolation now
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
-        bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2)
-        bessel_arg = bessel_arg.nan_to_num(nan=0.0)
-        bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
-        # input(bessel_term.max())
-        # bessel_term[x.abs() > self.halfwidth] = 0.0
-        return bessel_term * torch.sinc(x)
-
+        
+        spectral_interp = torch.sinc(x)
+        
+        dist_weights = torch.zeros(x.shape, device=self.device, dtype=self.dtype)
+        idx = x.abs() <= self.halfwidth
+        dist_weights[idx] = 1 - (x[idx].abs() / self.halfwidth)**0.5
+        
+        # return spectral_interp * dist_weights
+        return dist_weights
+    
     def forward(self):
         loc = self.loc()
+        # input(f'{loc[0].item()=}, {loc[1].item()=}')
         return (
             self.source_trace[:, None]
             * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
+
 
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
@@ -85,6 +157,15 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
     c.peak_time = c.peak_time_factor / c.freq
     c.dtype = torch.float32
     return c
+
+
+class MyL2Loss(torch.nn.Module):
+    def __init__(self, target: torch.Tensor):
+        super().__init__()
+        self.target = target
+
+    def forward(self, x: torch.Tensor):
+        return torch.nn.functional.mse_loss(x, self.target)
 
 
 @hydra.main(config_path='cfg', config_name='cfg', version_base=None)
@@ -129,6 +210,7 @@ def main(cfg: DictConfig):
         source_trace=source_amplitudes_true,
         beta=c.beta[0],
         halfwidth=c.halfwidth[0],
+        trainable=True,
     )
 
     ref_amplitudes = SourceAmplitudes(
@@ -161,13 +243,15 @@ def main(cfg: DictConfig):
 
         return u
 
-    input(ref_amplitudes().cpu().shape)
+    # input(ref_amplitudes().cpu().shape)
     obs_data_true = forward(amps=ref_amplitudes(), msg='True')
 
-    optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
+    # optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
+    optimizer = torch.optim.Adam(source_amplitudes.parameters(), lr=c.lr)
     # loss = torch.nn.MSELoss()
-    loss = EasyW1Loss(obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20))
+    loss = MyL2Loss(obs_data_true)
+    # loss = EasyW1Loss(obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20))
 
     num_frames = 10
     save_freq = max(1, c.n_epochs // num_frames)
@@ -180,41 +264,60 @@ def main(cfg: DictConfig):
     # ]
     loss_history = []
     grad_norm_history = []
-    for epoch in range(c.n_epochs):
-        num_calls = 0
+    # for epoch in range(c.n_epochs):
+    #     num_calls = 0
 
-        def closure():
-            nonlocal num_calls
-            num_calls += 1
-            optimizer.zero_grad()
-            obs_data = forward(amps=source_amplitudes(), msg=f'{epoch=}')
-            # loss_val = loss(obs_data, obs_data_true)
-            loss_val = loss(obs_data).sum()
-            loss_val.backward()
-            if num_calls == 1 and epoch % save_freq == 0:
-                param_history.append(source_amplitudes())
-                loss_history.append(loss_val)
-            return loss_val
+    #     def closure():
+    #         nonlocal num_calls
+    #         num_calls += 1
+    #         optimizer.zero_grad()
+    #         amps = source_amplitudes()
+    #         obs_data = forward(amps=amps, msg=f'{epoch=}')
+    #         # loss_val = loss(obs_data, obs_data_true)
+    #         loss_val = loss(obs_data).sum()
+    #         loss_val.backward()
+    #         if num_calls == 1 and epoch % save_freq == 0:
+    #             param_history.append(amps.detach().cpu().clone())
+    #             loss_history.append(loss_val.detach().cpu().clone())
+    #         return loss_val
 
-        loss_val = optimizer.step(closure)
-        true_error = torch.norm(
-            source_amplitudes.loc().detach() - ref_amplitudes.loc().detach()
+    #     loss_val = optimizer.step(closure)
+    #     true_error = torch.norm(
+    #         source_amplitudes.loc().detach() - ref_amplitudes.loc().detach()
+    #     )
+    #     final_loss = (
+    #         loss_val if isinstance(loss_val, float) else loss_val.item()
+    #     )
+    #     print(
+    #         f'Epoch {epoch}, Loss: {final_loss}, neg_loc_grad:'
+    #         f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
+    #         f' loc: {list(source_amplitudes.loc().detach().cpu().numpy())}'
+    #         f' true_error: {true_error}',
+    #         flush=True,
+    #     )
+    
+    def my_function(loc):
+        u = SourceAmplitudes(
+            ny=c.ny,
+            nx=c.nx,
+            init_loc0=loc[0] * c.ny,
+            init_loc1=loc[1] * c.nx,
+            source_trace=source_amplitudes_true,
+            beta=c.beta[0],
+            halfwidth=c.halfwidth[0],
+            trainable=True,
         )
-        final_loss = (
-            loss_val if isinstance(loss_val, float) else loss_val.item()
-        )
-        print(
-            f'Epoch {epoch}, Loss: {final_loss}, neg_loc_grad:'
-            f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
-            f' loc: {list(source_amplitudes.loc().detach().cpu().numpy())}'
-            f' true_error: {true_error}',
-            flush=True,
-        )
+        obs_data = forward(amps=u(), msg='True')
+        return loss(obs_data).sum().item()
+    
+    result = minimize(my_function, [c.init_loc[0], c.init_loc[1]], method='Nelder-Mead', options={'xatol': 1e-8, 'disp': True})
 
-    with open('.latest', 'w') as f:
-        f.write(f'cd {hydra_out()}')
+    # with open('.latest', 'w') as f:
+    #     f.write(f'cd {hydra_out()}')
 
-    print('To see the results of this run, run\n    . .latest')
+    # print('To see the results of this run, run\n    . .latest')
+    
+    print("Optimization Result:", result)
 
 
 if __name__ == "__main__":
