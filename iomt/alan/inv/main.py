@@ -16,6 +16,7 @@ from misfit_toys.swiffer import dupe
 from helpers import EasyW1Loss
 from scipy.optimize import minimize
 
+
 def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
     if torch.isnan(u).any():
         # count number of NaNs
@@ -95,6 +96,7 @@ class SourceAmplitudesLegacy(torch.nn.Module):
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
 
+
 class SourceAmplitudes(torch.nn.Module):
     def __init__(
         self,
@@ -127,19 +129,20 @@ class SourceAmplitudes(torch.nn.Module):
         self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
 
     def _get_weight(self, loc, n):
-        
         # Linear interpolation now
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        
+
         spectral_interp = torch.sinc(x)
-        
-        dist_weights = torch.zeros(x.shape, device=self.device, dtype=self.dtype)
+
+        dist_weights = torch.zeros(
+            x.shape, device=self.device, dtype=self.dtype
+        )
         idx = x.abs() <= self.halfwidth
-        dist_weights[idx] = 1 - (x[idx].abs() / self.halfwidth)**0.5
-        
+        dist_weights[idx] = 1 - (x[idx].abs() / self.halfwidth) ** 0.5
+
         # return spectral_interp * dist_weights
         return dist_weights
-    
+
     def forward(self):
         loc = self.loc()
         # input(f'{loc[0].item()=}, {loc[1].item()=}')
@@ -148,7 +151,6 @@ class SourceAmplitudes(torch.nn.Module):
             * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
-
 
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
@@ -193,8 +195,9 @@ def main(cfg: DictConfig):
     rec_loc = rec_loc.view(c.n_shots, -1, 2)
     # print(f'{rec_loc.shape=}')
 
-    v = torch.ones(c.ny, c.nx).to(c.device) * c.vel
-    v = v[: c.ny, : c.nx]
+    # v = torch.ones(c.ny, c.nx).to(c.device) * c.vel
+    # v = v[: c.ny, : c.nx]
+    v = torch.rand(c.ny, c.nx).to(c.device) * c.vel
 
     t = torch.linspace(0, c.nt * c.dt, c.nt, device=c.device)
     source_amplitudes_true = (
@@ -248,54 +251,13 @@ def main(cfg: DictConfig):
 
     # optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
-    optimizer = torch.optim.Adam(source_amplitudes.parameters(), lr=c.lr)
+    # optimizer = torch.optim.Adam(source_amplitudes.parameters(), lr=c.lr)
     # loss = torch.nn.MSELoss()
     loss = MyL2Loss(obs_data_true)
-    # loss = EasyW1Loss(obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20))
+    # loss = EasyW1Loss(
+        # obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20)
+    # )
 
-    num_frames = 10
-    save_freq = max(1, c.n_epochs // num_frames)
-    # param_history = [source_amplitudes().detach().clone()
-    param_history = []
-    # loss_history = [
-    #     loss(
-    #         obs_data_true, forward(amps=source_amplitudes(), msg='Initial').detach()
-    #     )
-    # ]
-    loss_history = []
-    grad_norm_history = []
-    # for epoch in range(c.n_epochs):
-    #     num_calls = 0
-
-    #     def closure():
-    #         nonlocal num_calls
-    #         num_calls += 1
-    #         optimizer.zero_grad()
-    #         amps = source_amplitudes()
-    #         obs_data = forward(amps=amps, msg=f'{epoch=}')
-    #         # loss_val = loss(obs_data, obs_data_true)
-    #         loss_val = loss(obs_data).sum()
-    #         loss_val.backward()
-    #         if num_calls == 1 and epoch % save_freq == 0:
-    #             param_history.append(amps.detach().cpu().clone())
-    #             loss_history.append(loss_val.detach().cpu().clone())
-    #         return loss_val
-
-    #     loss_val = optimizer.step(closure)
-    #     true_error = torch.norm(
-    #         source_amplitudes.loc().detach() - ref_amplitudes.loc().detach()
-    #     )
-    #     final_loss = (
-    #         loss_val if isinstance(loss_val, float) else loss_val.item()
-    #     )
-    #     print(
-    #         f'Epoch {epoch}, Loss: {final_loss}, neg_loc_grad:'
-    #         f' {list(-source_amplitudes.loc.get_grad().cpu().numpy())}'
-    #         f' loc: {list(source_amplitudes.loc().detach().cpu().numpy())}'
-    #         f' true_error: {true_error}',
-    #         flush=True,
-    #     )
-    
     def my_function(loc):
         u = SourceAmplitudes(
             ny=c.ny,
@@ -309,14 +271,20 @@ def main(cfg: DictConfig):
         )
         obs_data = forward(amps=u(), msg='True')
         return loss(obs_data).sum().item()
-    
-    result = minimize(my_function, [c.init_loc[0], c.init_loc[1]], method='Nelder-Mead', options={'xatol': 1e-8, 'disp': True})
+
+    result = minimize(
+        my_function,
+        [c.init_loc[0], c.init_loc[1]],
+        method='Nelder-Mead',
+        options={'xatol': 1e-8, 'disp': True},
+        callback=lambda x: print(x),
+    )
 
     # with open('.latest', 'w') as f:
     #     f.write(f'cd {hydra_out()}')
 
     # print('To see the results of this run, run\n    . .latest')
-    
+
     print("Optimization Result:", result)
 
 

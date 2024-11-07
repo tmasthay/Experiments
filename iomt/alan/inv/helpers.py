@@ -448,7 +448,8 @@ class EasyW1Loss(torch.nn.Module):
         divider = tslice(v, dims=[dim]).unsqueeze(dim)
         assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
         u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
-        assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
+        delta = 1.0e-4
+        assert u.max() <= 1.0 + delta, f'{u.max().item()=}, should be <= 1.0'
         assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
         return u
 

@@ -19,7 +19,7 @@ editor: null
 device: 'cuda:0'
 
 ref_loc: [0.5, 0.5]
-init_loc: [0.6, 0.5]
+init_loc: [0.8, 0.1]
 
 pml_width: 20
 
