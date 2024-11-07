@@ -66,7 +66,6 @@ class SourceAmplitudesLegacy(torch.nn.Module):
         self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
 
     def _get_weight(self, loc, n):
-        # input(f'{loc()=}, {n=}')
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
         # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2).sqrt()
         bessel_arg = torch.zeros(x.shape, device=self.device, dtype=self.dtype)
@@ -76,20 +75,17 @@ class SourceAmplitudesLegacy(torch.nn.Module):
         )
 
         assert not torch.isnan(bessel_arg).any()
-        # input(f'{bessel_arg.max()}, {bessel_arg.min()}, {torch.i0( bessel_arg).max()}, {torch.i0(bessel_arg).min()}, {torch.i0(self.beta)}')
         # bessel_arg = self.beta * (1 - (x / self.halfwidth) ** 2)
         # bessel_arg = bessel_arg.nan_to_num(nan=0.0)
         bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta)
 
         assert not torch.sinc(x).isnan().any(), f'{x.min()}, {x.max()}'
         assert not bessel_term.isnan().any()
-        # input(bessel_term.max())
         # bessel_term[x.abs() > self.halfwidth] = 0.0
         return bessel_term * torch.sinc(x)
 
     def forward(self):
         loc = self.loc()
-        # input(f'{loc[0].item()=}, {loc[1].item()=}')
         return (
             self.source_trace[:, None]
             * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
@@ -118,11 +114,13 @@ class SourceAmplitudes(torch.nn.Module):
             self.loc = Param(
                 p=torch.tensor([init_loc0, init_loc1]), requires_grad=True
             )
+            self.source_trace = Param(p=source_trace, requires_grad=True)
         else:
             self.loc = Param(
                 p=torch.tensor([init_loc0, init_loc1]), requires_grad=False
             )
-        self.source_trace = source_trace
+            self.source_trace = Param(p=source_trace, requires_grad=False)
+
         self.device = source_trace.device
         self.dtype = source_trace.dtype
         self.halfwidth = halfwidth
@@ -145,12 +143,20 @@ class SourceAmplitudes(torch.nn.Module):
 
     def forward(self):
         loc = self.loc()
-        # input(f'{loc[0].item()=}, {loc[1].item()=}')
-        return (
-            self.source_trace[:, None]
-            * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
-            * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
-        ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
+        src_vec = self.source_trace()
+
+        sv_final = src_vec.reshape(1, 1, 1, -1)
+        wt0 = self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
+        wt1 = self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
+
+        res = sv_final * wt0 * wt1
+        final_res = res.reshape(sv_final.shape[0], -1, sv_final.shape[-1])
+        return final_res
+        # return (
+        #     src_vec.reshape(1, 1, 1, -1)
+        #     * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
+        #     * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
+        # ).reshape(src_vec.shape[0], -1, src_vec.shape[-1])
 
 
 def preprocess_cfg(cfg: DictConfig) -> DotDict:
@@ -200,21 +206,8 @@ def main(cfg: DictConfig):
     v = torch.rand(c.ny, c.nx).to(c.device) * c.vel
 
     t = torch.linspace(0, c.nt * c.dt, c.nt, device=c.device)
-    source_amplitudes_true = (
-        dw.wavelets.ricker(c.freq, c.nt, c.dt, c.peak_time)
-        .repeat(c.n_shots, 1)
-        .to(c.device)
-    )
-    source_amplitudes: SourceAmplitudes = SourceAmplitudes(
-        ny=c.ny,
-        nx=c.nx,
-        init_loc0=c.init_loc[0] * c.ny,
-        init_loc1=c.init_loc[1] * c.nx,
-        source_trace=source_amplitudes_true,
-        beta=c.beta[0],
-        halfwidth=c.halfwidth[0],
-        trainable=True,
-    )
+    time_sig = dw.wavelets.ricker(c.freq, c.nt, c.dt, c.peak_time)
+    source_amplitudes_true = time_sig.repeat(c.n_shots, 1).to(c.device)
 
     ref_amplitudes = SourceAmplitudes(
         ny=c.ny,
@@ -246,38 +239,60 @@ def main(cfg: DictConfig):
 
         return u
 
-    # input(ref_amplitudes().cpu().shape)
     obs_data_true = forward(amps=ref_amplitudes(), msg='True')
 
     # optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = torch.optim.Adam(source_amplitudes.parameters(), lr=c.lr)
     # loss = torch.nn.MSELoss()
-    loss = MyL2Loss(obs_data_true)
-    # loss = EasyW1Loss(
-        # obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20)
-    # )
+    # loss = MyL2Loss(obs_data_true)
+    loss = EasyW1Loss(
+        obs_data_true, renorm=torch.nn.Softplus(beta=1, threshold=20)
+    )
 
-    def my_function(loc):
+    def my_function(params):
+        src_y = c.ny * params[0]
+        src_x = c.nx * params[1]
+        src_amps = torch.from_numpy(params[2:]).float().to(c.device)
+        
+        print_progress(params)
+        
         u = SourceAmplitudes(
             ny=c.ny,
             nx=c.nx,
-            init_loc0=loc[0] * c.ny,
-            init_loc1=loc[1] * c.nx,
-            source_trace=source_amplitudes_true,
+            init_loc0=src_y,
+            init_loc1=src_x,
+            source_trace=src_amps,
             beta=c.beta[0],
             halfwidth=c.halfwidth[0],
-            trainable=True,
+            trainable=False,
         )
         obs_data = forward(amps=u(), msg='True')
         return loss(obs_data).sum().item()
 
+    ref_loc = torch.tensor(c.ref_loc).to(c.device)
+    ts_gpu = time_sig.to(c.device)
+
+    def print_progress(x):
+        src_loc = torch.from_numpy(x[:2]).to(c.device)
+        time_sig_pred = torch.from_numpy(x[2:]).to(c.device)
+        mse_sig = torch.norm(time_sig_pred - ts_gpu) / time_sig.numel()
+        mse_src_loc = torch.norm(src_loc - ref_loc) / ref_loc.numel()
+
+        print(
+            f'src_loc_y={src_loc[0].item()}, src_loc_x={src_loc[1].item()},'
+            f' mse_src_loc={mse_src_loc.item()}, mse_sig={mse_sig.item()}',
+        )
+
+    # start_sig = torch.rand_like(time_sig)
+    start_sig = time_sig + c.noise_level * torch.randn_like(time_sig) * time_sig.max()
+    final = np.concatenate((c.init_loc, start_sig.numpy()), axis=0)
     result = minimize(
         my_function,
-        [c.init_loc[0], c.init_loc[1]],
+        final,
         method='Nelder-Mead',
-        options={'xatol': 1e-8, 'disp': True},
-        callback=lambda x: print(x),
+        options={'xatol': 1e-3, 'disp': True},
+        callback=print_progress,
     )
 
     # with open('.latest', 'w') as f:
