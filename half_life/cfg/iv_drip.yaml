@@ -1,12 +1,12 @@
 half_life: 20.0
-reapplication_time: 20.0
-num_doses: 10
+reapplication_time: 1.0
+num_doses: 2000
 time_upsample: 10
 device: cuda:0
 cutoff: 10
 steady_tol: 0.03
 time_units: days
-fig_name: standard.png
-dose: 100
+fig_name: iv_drip.png
+dose: 5
 dose_units: mg
 abs_dose: true

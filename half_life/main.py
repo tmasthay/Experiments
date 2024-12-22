@@ -31,7 +31,7 @@ def main(c: DictConfig) -> None:
     nt = c.time_upsample * c.num_doses
     y = torch.zeros(nt).to(c.device)
     t = torch.linspace(0, sim_time, nt).to(c.device)
-    dose = 1.0
+    dose = c.get('dose', 1.0)
     y[0] = dose
 
     edge = lambda i: c.time_upsample * i
@@ -49,7 +49,12 @@ def main(c: DictConfig) -> None:
         t = t[: -c.cutoff]
         y = y[: -c.cutoff]
 
-    y = y / dose
+    abs_dose = 'dose' in c.keys() and c.abs_dose
+    if abs_dose: 
+        y_title = f"Concentration Surrogate ({c.dose_units})"
+    else: 
+        y_title = f"Concentration Surrogate (Dose Equivalents)"
+        y = y / dose
     last_sub = y[-2 * c.time_upsample :]
 
     app_min_steady = last_sub.min()
@@ -100,9 +105,9 @@ def main(c: DictConfig) -> None:
     )
     plt.title(plot_title)
     plt.xlabel(x_title)
-    plt.ylabel("Concentration (Dose Equivalents)")
+    plt.ylabel(y_title)
     plt.legend()
-    plt.savefig('res.png')
+    plt.savefig(c.fig_name)
 
 
 if __name__ == "__main__":
