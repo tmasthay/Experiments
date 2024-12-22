@@ -1,0 +1,8 @@
+half_life: 24.0
+reapplication_time: 24.0
+num_doses: 20
+time_upsample: 3
+device: cuda:0
+cutoff: 10
+steady_tol: 0.03
+time_units: days
