@@ -8,4 +8,4 @@ y:
   depth: self_rec_loc.rec.depth
   device: self_rec_loc.device
 
-x: self_rec_loc.rt.data.rec_loc.y
+x: self_rec_loc.rt.rec_loc.y

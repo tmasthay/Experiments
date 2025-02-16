@@ -1,0 +1,7 @@
+- [__call_vp__, self_vp]
+- [__call_vs__, self_vs]
+- [__call_rho__, self_rho]
+- [__call_src_loc__, self_src_loc]
+- [__call_rec_loc__, self_rec_loc]
+- [__call_src_amp__, self_src_amp]
+- [__call__, self]

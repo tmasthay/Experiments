@@ -1,3 +1,5 @@
+# @VS@ python _file --help
+
 # flake8: noqa: F401
 import os
 from typing import Tuple

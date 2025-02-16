@@ -162,7 +162,8 @@ def get_grid_limits(*, sy, ny, dy, sx, nx, dx):
     max_x = sx + nx * dx
     return [sy, max_y, max_x, sx]
     # return [sy, sx, max_y, max_x]
-    
+
+
 def preload_data(*, root, device):
     def get(x):
         path = pj(root, x.replace('.pt', '') + '.pt')
@@ -172,23 +173,23 @@ def preload_data(*, root, device):
     d.vp = get('vp')
     d.vs = get('vs')
     d.rho = get('rho')
-    
+
     d.src_amp = DotDict()
     d.src_amp.y = get('src_amp_y')
     d.src_amp.x = get('src_amp_x')
-    
+
     d.src_loc = DotDict()
     d.src_loc.x = get('src_loc_x')
     d.src_loc.y = get('src_loc_y')
-    
+
     d.rec_loc = DotDict()
     d.rec_loc.x = get('rec_loc_x')
     d.rec_loc.y = get('rec_loc_y')
-    
+
     d.res = DotDict()
     d.res.errors = get('errors')
     d.res.obs = get('obs')
-    
+
     return d
 
 
@@ -221,25 +222,25 @@ def validate_elastic_loop_assertions(c):
     assert 'vp' in c.rt
     assert 'vs' in c.rt
     assert 'rho' in c.rt
-    assert 'y' in c.rt.src_loc
-    assert 'x' in c.rt.src_loc
+    assert 'y' in c.rt.data.src_loc
+    assert 'x' in c.rt.data.src_loc
     assert 'y' in c.rt.rec_loc
     assert 'x' in c.rt.rec_loc
     assert 'y' in c.rt.src_amp
     assert 'x' in c.rt.src_amp
 
-    assert c.rt.src_loc.y.shape == c.rt.src_loc.x.shape
+    assert c.rt.data.src_loc.y.shape == c.rt.data.src_loc.x.shape
     assert c.rt.rec_loc.y.shape == c.rt.rec_loc.x.shape
-    assert c.rt.rec_loc.y.shape[0] == c.rt.src_loc.y.shape[0]
-    assert c.rt.src_amp.y.shape[0] == c.rt.src_loc.y.shape[0]
+    assert c.rt.rec_loc.y.shape[0] == c.rt.data.src_loc.y.shape[0]
+    assert c.rt.src_amp.y.shape[0] == c.rt.data.src_loc.y.shape[0]
 
     def check_device(x, k):
         assert x.device == torch.device(
             c.device
         ), f'{k} on {x.device}, not {c.device}'
 
-    check_device(c.rt.src_loc.y, 'src_loc.y')
-    check_device(c.rt.src_loc.x, 'src_loc.x')
+    check_device(c.rt.data.src_loc.y, 'src_loc.y')
+    check_device(c.rt.data.src_loc.x, 'src_loc.x')
     check_device(c.rt.rec_loc.y, 'rec_loc.y')
     check_device(c.rt.rec_loc.x, 'rec_loc.x')
     check_device(c.rt.src_amp.y, 'src_amp.y')
@@ -256,7 +257,7 @@ def load_clamp_vs(
     vp: torch.Tensor,
     rel_vp_scaling: float,
     global_scaling: float,
-    min_vs: float
+    min_vs: float,
 ):
     # .707 approx 1/sqrt(2)
     assert 0.0 < rel_vp_scaling <= 0.707
@@ -276,7 +277,7 @@ def load_clamp_vs(
 
     zero_idx = vs == 0.0
     vs[zero_idx] = vp[zero_idx] * rel_vp_scaling
-    
+
     true_min = min(0.707 * vp.min(), min_vs)
     vs = torch.clamp(vs, min=true_min)
     # vs = torch.clamp(vs, min=min(torch.sqrt(torch.tensor(2.0)) * vp.min(), min_vs))
@@ -338,6 +339,7 @@ def easy_elastic(
         **kw,
     )
 
+
 def preloaded_landscape_loop(c: DotDict):
     # raise ValueError(f'{c.rt.data.flat_keys()=}')
     D = c.rt.data
@@ -349,16 +351,16 @@ def preloaded_landscape_loop(c: DotDict):
         ref_obs, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {})
     )
     # raise ValueError(f'{my_loss=}')
-    
+
     idxs = torch.arange(0, D.src_loc.y.shape[0], c.batch_size)
     if idxs[-1] != D.src_loc.y.shape[0]:
         idxs = torch.cat([idxs, torch.tensor([D.rec_loc.y.shape[0]])])
     slices = [slice(idxs[i], idxs[i + 1]) for i in range(idxs.shape[0] - 1)]
     errors = torch.rand(c.src.n_horz * c.src.n_deep, device=c.device) * 100.0
-    
+
     num_slices = len(slices)
     start_time = time()
-    
+
     def report_progress(i):
         msg = f'{i+1}/{num_slices}...'
         if i > 0:
@@ -373,14 +375,15 @@ def preloaded_landscape_loop(c: DotDict):
             )
         # print(msg, flush=True, end='\r')
         print(msg, flush=True)
-    
+
     for i, s in enumerate(slices):
         report_progress(i)
         errors[s] = my_loss(obs[s])
-        
+
     errors = errors.view(c.src.n_horz, c.src.n_deep)
-    
+
     return DotDict({'errors': errors, 'obs': obs})
+
 
 def elastic_landscape_loop(c):
     def forward(s):
@@ -389,15 +392,15 @@ def elastic_landscape_loop(c):
         #     but not worth refactoring right now
         # would just require changing device: ${device} to device: ${gpu}
         # in the config file
-        vp = c.rt.vp.to(c.gpu)
-        vs = c.rt.vs.to(c.gpu)
-        rho = c.rt.rho.to(c.gpu)
-        src_amp_y = c.rt.src_amp.y[s].to(c.gpu)
-        src_amp_x = c.rt.src_amp.x[s].to(c.gpu)
-        src_loc_y = c.rt.src_loc.y[s].to(c.gpu)
-        src_loc_x = c.rt.src_loc.x[s].to(c.gpu)
-        rec_loc_y = c.rt.rec_loc.y[s].to(c.gpu)
-        rec_loc_x = c.rt.rec_loc.x[s].to(c.gpu)
+        vp = c.rt.data.vp.to(c.gpu)
+        vs = c.rt.data.vs.to(c.gpu)
+        rho = c.rt.data.rho.to(c.gpu)
+        src_amp_y = c.rt.data.src_amp.y[s].to(c.gpu)
+        src_amp_x = c.rt.data.src_amp.x[s].to(c.gpu)
+        src_loc_y = c.rt.data.src_loc.y[s].to(c.gpu)
+        src_loc_x = c.rt.data.src_loc.x[s].to(c.gpu)
+        rec_loc_y = c.rt.data.rec_loc.y[s].to(c.gpu)
+        rec_loc_x = c.rt.data.rec_loc.x[s].to(c.gpu)
         u = easy_elastic(
             vp=vp,
             vs=vs,
@@ -418,20 +421,24 @@ def elastic_landscape_loop(c):
         final_obs = torch.stack(u[-2:], dim=-1).to(c.device)
         return wavefield, final_obs
 
-    idxs = torch.arange(0, c.rt.src_loc.y.shape[0], c.batch_size)
-    if idxs[-1] != c.rt.src_loc.y.shape[0]:
-        idxs = torch.cat([idxs, torch.tensor([c.rt.src_loc.y.shape[0]])])
+    idxs = torch.arange(0, c.rt.data.src_loc.y.shape[0], c.batch_size)
+    if idxs[-1] != c.rt.data.src_loc.y.shape[0]:
+        idxs = torch.cat([idxs, torch.tensor([c.rt.data.src_loc.y.shape[0]])])
     slices = [slice(idxs[i], idxs[i + 1]) for i in range(idxs.shape[0] - 1)]
 
     errors = torch.rand(c.src.n_horz * c.src.n_deep, device=c.device) * 100.0
     final_wavefields = torch.zeros(
-        c.rt.src_loc.y.shape[0], *c.rt.vp.shape, 2, device=c.device
+        c.rt.data.src_loc.y.shape[0], *c.rt.data.vp.shape, 2, device=c.device
     )
     obs = torch.zeros(
-        c.rt.src_loc.y.shape[0], c.rec.n_recs, c.grid.nt, 2, device=c.device
+        c.rt.data.src_loc.y.shape[0],
+        c.rec.n_recs,
+        c.grid.nt,
+        2,
+        device=c.device,
     )
 
-    ref_idx = c.rt.src_loc.y.shape[0] // 2
+    ref_idx = c.rt.data.src_loc.y.shape[0] // 2
     ref_wavefield, ref_data = forward(slice(ref_idx, ref_idx + 1, 1))
 
     num_slices = len(slices)
@@ -467,7 +474,9 @@ def elastic_landscape_loop(c):
         errors[s] = my_loss(obs[s]).view(*errors[s].shape)
     assert errors.min() <= 1e-8, f'{errors.min()=}'
     total_forward_solve_time = time() - start_time
-    avg_forward_solve_time = total_forward_solve_time / c.rt.src_loc.y.shape[0]
+    avg_forward_solve_time = (
+        total_forward_solve_time / c.rt.data.src_loc.y.shape[0]
+    )
     print(
         f'Total solve time: {total_forward_solve_time:.2f}s\n    avg:'
         f' {avg_forward_solve_time:.2f}s'
@@ -639,10 +648,10 @@ def plot_landscape(c: DotDict, *, path):
     opts = c.postprocess.plt
 
     src_loc_y = (
-        c.rt.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
+        c.rt.data.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
     )
     src_loc_x = (
-        c.rt.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
+        c.rt.data.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
     )
     # errors_flat = errors.view(-1)
 
@@ -651,10 +660,10 @@ def plot_landscape(c: DotDict, *, path):
         plt.clf()
         # u = torch.clamp(errors, max=5000.0)
         scale = c.postprocess.plt.errors.other.get('scale', None)
-        if scale is not None: 
+        if scale is not None:
             if scale.name == 'log':
                 errors = torch.log10(1.0 + errors)
-            elif scale.name == 'clamp': 
+            elif scale.name == 'clamp':
                 errors = torch.clamp(errors, **scale.filter(['name']))
         easy_imshow(
             errors.cpu(),
@@ -835,6 +844,7 @@ def plot_landscape(c: DotDict, *, path):
 
     return '\n'.join(rt_error_list)
 
+
 def plot_landscape_no_wavefields(c: DotDict, *, path):
     assert 'rt' in c
     assert 'data' in c.rt
@@ -848,12 +858,8 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
 
     opts = c.postprocess.plt
 
-    src_loc_y = (
-        d.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
-    )
-    src_loc_x = (
-        d.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
-    )
+    src_loc_y = d.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
+    src_loc_x = d.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
     # errors_flat = errors.view(-1)
 
     def plot_errors():
@@ -861,10 +867,10 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
         plt.clf()
         # u = torch.clamp(errors, max=5000.0)
         scale = c.postprocess.plt.errors.other.get('scale', None)
-        if scale is not None: 
+        if scale is not None:
             if scale.name == 'log':
                 errors = torch.log10(1.0 + errors)
-            elif scale.name == 'clamp': 
+            elif scale.name == 'clamp':
                 errors = torch.clamp(errors, **scale.filter(['name']))
         easy_imshow(
             errors.cpu(),
@@ -904,8 +910,9 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
         t = torch.linspace(0.0, c.grid.dt * c.grid.nt, c.grid.nt)
         beta = opts.obs.beta
         geo_scale = opts.obs.geo_scale
-        plot_scale = (1 + beta * t)**geo_scale
+        plot_scale = (1 + beta * t) ** geo_scale
         ps_final = plot_scale[:, None]
+
         def plotter_obs(*, data, idx, fig, axes):
             subp_obs = opts.obs.subplot
             if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
@@ -915,12 +922,14 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
             plt.clf()
             plt.subplot(*subp_obs.shape, subp_obs.order[0])
             easy_imshow(
-                ps_final * data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
+                ps_final * data[idx][..., 0].cpu().T,
+                **opts.obs.y.filter(['other']),
             )
 
             plt.subplot(*subp_obs.shape, subp_obs.order[1])
             easy_imshow(
-                ps_final * data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
+                ps_final * data[idx][..., 1].cpu().T,
+                **opts.obs.x.filter(['other']),
             )
 
         subp_obs = opts.obs.subplot
@@ -967,6 +976,7 @@ def plot_landscape_no_wavefields(c: DotDict, *, path):
 
     return '\n'.join(rt_error_list)
 
+
 class SourceAmplitudes(torch.nn.Module):
     def __init__(
         self,
@@ -1003,7 +1013,9 @@ class SourceAmplitudes(torch.nn.Module):
 
     def _get_weight(self, loc, n):
         x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        bessel_arg = torch.relu(self.beta * (1 - (x / self.halfwidth) ** 2)) ** 0.5
+        bessel_arg = (
+            torch.relu(self.beta * (1 - (x / self.halfwidth) ** 2)) ** 0.5
+        )
         bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
         return bessel_term * torch.sinc(x)
 
@@ -1014,7 +1026,8 @@ class SourceAmplitudes(torch.nn.Module):
             * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
             * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
         ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
-                
+
+
 class EasyW1Loss(torch.nn.Module):
     def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
         super().__init__()
@@ -1043,7 +1056,9 @@ class EasyW1Loss(torch.nn.Module):
         return u
 
     def forward(self, data: torch.Tensor) -> torch.Tensor:
-        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
+        lcl_cdf = EasyW1Loss.__cdf__(
+            data, renorm=self.renorm, dim=self.dim, eps=self.eps
+        )
         # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
         # diff = (lcl_cdf - self.cdf).abs()
         # return torch.sum(diff**2, dim=self.dim)
@@ -1051,12 +1066,13 @@ class EasyW1Loss(torch.nn.Module):
         diff = lcl_cdf - self.cdf
         integrand = diff**2
         res = torch.mean(integrand, dim=self.dim)
-        
+
         # consider refactoring later if you want something
         # more general, but for now this is fine
         res_flat = res.view(res.shape[0], -1)
         return res_flat.mean(dim=1)
-        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
+        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}')
+
 
 class MyL2Loss(torch.nn.Module):
     def __init__(self, ref_data):
@@ -1073,5 +1089,3 @@ class MyL2Loss(torch.nn.Module):
         v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1) * rescale_factor
         assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
         return v
-
-

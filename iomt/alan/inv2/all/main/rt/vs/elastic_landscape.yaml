@@ -1,7 +1,7 @@
 __call_vs__: ${dep.helpers} load_clamp_vs
 path: ${path}/vs_true.pt
 device: ${device}
-vp: self_vs.rt.data.vp
+vp: self_vs.rt.vp
 rel_vp_scaling: 0.5
 global_scaling: 1000.0
 min_vs: 1000.0

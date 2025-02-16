@@ -289,7 +289,11 @@ def main(cfg: DictConfig):
                 print('Exiting...')
                 return
             begin_time = time()
-            c.rt.data.res = c.main.callback(c)
+            try:
+                c.rt.data.res = c.main.callback(c)
+            except Exception as e:
+                print(c)
+                raise e
             total_time = time() - begin_time
         except Exception as e:
             # print(f'Error: {e}')

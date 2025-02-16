@@ -8,4 +8,4 @@ y:
   n_srcs_deep: ${src.n_deep}
   device: ${device}
 
-x: self_src_loc.rt.data.src_loc.y
+x: self_src_loc.rt.src_loc.y
