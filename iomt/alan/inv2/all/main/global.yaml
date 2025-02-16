@@ -1,0 +1,17 @@
+import_specs:
+  delim: "@"
+  key: "__import__"
+  ignore_spaces: true
+
+use_prev_data: false
+prev_data_dir: null
+
+dupe: true
+editor: code
+
+hydra:
+  run:
+    dir: .outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: .multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}

@@ -1,9 +1,8 @@
-# @package _global_
-
 defaults:
-  - _self_
+  - global
   - main: elastic_landscape
   - postprocess: elastic_landscape
+  - _self_
 
 dep:
   helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
@@ -13,7 +12,6 @@ dep:
   iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
   utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
   types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
-
 
 device: cpu
 gpu: cuda:1

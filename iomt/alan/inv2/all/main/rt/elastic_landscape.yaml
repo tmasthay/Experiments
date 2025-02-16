@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - vp: ${static}
-  - vs: ${static}
-  - rho: ${static}
-  - src_loc: ${static}
-  - rec_loc: ${static}
-  - src_amp: ${static}
+  - vp: elastic_landscape
+  - vs: elastic_landscape
+  - rho: elastic_landscape
+  - src_loc: elastic_landscape
+  - rec_loc: elastic_landscape
+  - src_amp: elastic_landscape
   - loss: l2
