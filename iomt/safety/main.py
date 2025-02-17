@@ -242,7 +242,7 @@ def read_prev_data(c: DotDict, path: str) -> DotDict:
     return c
 
 
-@hydra.main(config_path='cfg_gen', config_name='cfg', version_base=None)
+@hydra.main(config_path='all/main', config_name='default', version_base=None)
 def main(cfg: DictConfig):
     if cfg.get('dupe', True):
         dupe(hydra_out('stream'), editor=cfg.get('editor', None))
