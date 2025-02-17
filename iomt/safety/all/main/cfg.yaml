@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+
+import_specs:
+  delim: "@"
+  key: "__import__"
+  ignore_spaces: true
+
+use_prev_data: false
+prev_data_dir: null
+
+dupe: false
+editor: code

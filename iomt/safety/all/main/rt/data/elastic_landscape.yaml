@@ -1,0 +1,7 @@
+defaults:
+  - vp: elastic_landscape
+  - vs: elastic_landscape
+  - rho: elastic_landscape
+  - src_loc: elastic_landscape
+  - src_amp: elastic_landscape
+  - rec_loc: elastic_landscape

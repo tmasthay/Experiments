@@ -1,0 +1,4 @@
+defaults:
+  - _self_
+  - data: elastic_landscape
+  - loss: l2

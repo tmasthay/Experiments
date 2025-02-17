@@ -1,0 +1,11 @@
+y:
+  __call_src_loc__: ${dep.helpers} landscape_sources
+  lower_left: ${src.lower_left}
+  upper_right: ${src.upper_right}
+  ny: ${grid.ny}
+  nx: ${grid.nx}
+  n_srcs_horz: ${src.n_horz}
+  n_srcs_deep: ${src.n_deep}
+  device: ${device}
+
+x: self_src_loc.rt.data.src_loc.y
