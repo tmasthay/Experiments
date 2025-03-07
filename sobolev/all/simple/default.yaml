@@ -1,0 +1,13 @@
+# config.yaml
+n: 256
+tmax: 2.0
+dx: 1.0
+freq_true: 3.0
+phase_true: 0.5
+noise_std: 0.2
+freq_guess_init: 2.0
+phase_guess_init: 0.0
+lr: 0.02
+num_steps: 200
+log_interval: 20
+s: 0.5
