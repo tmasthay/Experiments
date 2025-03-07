@@ -11,3 +11,11 @@ prev_data_dir: null
 
 dupe: false
 editor: code
+dump_runtime: false
+
+hydra:
+  run:
+    dir: .main/outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: .main/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}

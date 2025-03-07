@@ -144,6 +144,11 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
             ref = pj(prev_data_dir, '.hydra', f)
             new_copy = pj(hydra_out(), '.hydra', f)
             os.system(f'cp {ref} {new_copy}')
+        if prev_data_dir is None:
+            prev_data_dir = get_last_run_dir()
+        print(f'Loading previous data from run at\n    {prev_data_dir}...', end='')
+        c = read_prev_data(c, path=prev_data_dir)
+        print(f'DONE')
     else:
         c = DotDict(OmegaConf.to_container(cfg, resolve=True))
     c.use_prev_data = use_prev_data
@@ -170,8 +175,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         self_key="self_pre",
     )
 
-    with open(hydra_out('.hydra/runtime_pre.yaml'), 'w') as f:
-        yaml.dump(c.dict(), f)
+    if c.get('dump_runtime', False):
+        with open(hydra_out('.hydra/runtime_pre.yaml'), 'w') as f:
+            yaml.dump(c.dict(), f)
 
     cfg_orig = deepcopy(c.filter(exclude=['rt', 'resolve_order', 'dep']).dict())
     resolve_order = deepcopy(c.resolve_order or [])
@@ -197,16 +203,9 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         )
         assert non_rt_diff == {}, f'{c=}, {non_rt_diff=}, {cfg_orig=}'
 
-    c.assert_keys_present(
-        [
-            'rt.data.vp',
-            'rt.data.src_loc',
-            'rt.data.rec_loc',
-            'rt.data.src_amp',
-            'rt.data.vs',
-            'rt.data.rho',
-        ]
-    )
+    base_assert_keys = ['vp', 'src_loc', 'rec_loc', 'src_amp', 'vs', 'rho']
+    assert_keys = [f'rt.data.{k}' for k in base_assert_keys]
+    c.assert_keys_present(assert_keys)
 
     def bnd_assert(bounds, val, name):
         assert (
@@ -242,7 +241,7 @@ def read_prev_data(c: DotDict, path: str) -> DotDict:
     return c
 
 
-@hydra.main(config_path='all/main', config_name='default', version_base=None)
+@hydra.main(config_path='all/main', config_name='grad', version_base=None)
 def main(cfg: DictConfig):
     if cfg.get('dupe', True):
         dupe(hydra_out('stream'), editor=cfg.get('editor', None))
@@ -299,11 +298,6 @@ def main(cfg: DictConfig):
             # print(f'Error: {e}')
             print(f'{c.main=}')
             raise e
-    else:
-        if c.prev_data_dir is None:
-            c.prev_data_dir = get_last_run_dir()
-        print(f'Loading previous data from run at\n    {c.prev_data_dir}')
-        c = read_prev_data(c, path=c.prev_data_dir)
 
     # always callback the postprocessing even if we used previous data
     c = runtime_reduce(
@@ -313,13 +307,13 @@ def main(cfg: DictConfig):
         allow_implicit=True,
         relax=False,
     )
-    c.postprocess.callback(c, path=hydra_out())
+    c.postprocess.callback(c, path=c.get('out_path', hydra_out()))
 
     with open('.latest', 'w') as f:
         f.write(f'cd {hydra_out()}')
 
     with open(f'{pj(hydra_out(), "__COMPLETE__")}', 'w') as f:
-        f.write('-- RUN FINISHED --\n    This file is simply a placeholder')
+        f.write('-- RUN FINISHED --\n    This file is simply a placeholder to signify no unhandled errors occurred\n')
 
     print(f'\nRun . .latest to cd to the latest output directory\n')
 

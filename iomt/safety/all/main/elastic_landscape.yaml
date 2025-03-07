@@ -1,20 +1,10 @@
 defaults:
-  - cfg
-  - _self_
+  - global
+  - dep: default
   - main: elastic_landscape
   - postprocess: elastic_landscape
   - resolve_order: elastic_landscape
   - rt: elastic_landscape
-
-dep:
-  helpers: ${import_specs.key} cwd ${import_specs.delim} helpers ${import_specs.delim}
-  basic: ${import_specs.key} cwd ${import_specs.delim} basic ${import_specs.delim}
-  op: ${import_specs.key} ${import_specs.delim} operator ${import_specs.delim}
-  torch: ${import_specs.key} ${import_specs.delim} torch ${import_specs.delim}
-  iomt: ${import_specs.key} ${import_specs.delim} misfit_toys ${import_specs.delim}
-  utils: ${import_specs.key} ${import_specs.delim} misfit_toys.utils ${import_specs.delim}
-  types: ${import_specs.key} ${import_specs.delim} misfit_toys.types ${import_specs.delim}
-
 
 device: cpu
 gpu: cuda:1
