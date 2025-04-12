@@ -1,0 +1,46 @@
+#
+# @VS@ cd _dir/../.. && python gpt.py 
+
+# Grid and geometry settings
+grid:
+  nx: 50
+  ny: 50
+  spacing: [10.0, 10.0]  # dy, dx in meters
+
+# Simulation parameters
+simulation:
+  dt: 0.001            # Time step (seconds)
+  nt: 1000             # Number of time steps
+  pml_freq: 25.0       # Frequency for absorbing boundaries (PML)
+
+# Source settings
+source:
+  freq: ${simulation.pml_freq}          # Source wavelet frequency (Hz)
+  peak_time: 0.04      # Peak time (s)
+  mu_x: 25.0           # Initial guess for Gaussian mean in x
+  mu_y: 25.0           # Initial guess for Gaussian mean in y
+  sigma_x: 5.0         # Initial guess for Gaussian sigma_x
+  sigma_y: 5.0         # Initial guess for Gaussian sigma_y
+
+num_sources: 50        # Number of sources to activate
+
+# Velocity model settings (constant or file path)
+velocity: 1500
+
+# Receiver geometry (list of [x, y] pairs)
+receivers:
+  locations: [[25, 0], [25, 10], [25, 20], [25, 30], [25, 40], [25, 49]]
+
+# Observed data placeholder (should be replaced with real data)
+data:
+  observed: null       # e.g., "./observed_data.pt"
+
+# Optimization settings
+optim:
+  maxiter: 200         # Maximum number of iterations
+
+# Device settings
+use_gpu: true          # Use GPU if available
+
+_tmp_: 
+  peak_time_factor: 1.0
