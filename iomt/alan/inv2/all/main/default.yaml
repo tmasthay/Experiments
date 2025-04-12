@@ -1,0 +1,3 @@
+defaults:
+  - elastic_landscape
+  - _self_

@@ -1,3 +1,6 @@
+#
+# @VS@ cd _dir/.. && python gpt.py --config-name _sbase
+
 ny: 120
 dy: 4.0
 
@@ -21,16 +24,18 @@ editor: null
 device: 'cuda:0'
 
 ref_loc: [0.5, 0.5]
-init_loc: [0.6, 0.5]
+init_loc: [0.5, 0.5]
 
 pml_width: 20
 
 beta_dummy: 1.0
-beta: 
+beta:
   - ${..beta_dummy}
   - ${..beta_dummy}
 halfwidth: [70, 70]
 
 dupe: False
 
-noise_level: 100.0
+noise:
+  obs: 0.0
+  start: 0.0

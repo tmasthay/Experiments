@@ -17,6 +17,18 @@ from helpers import EasyW1Loss
 from scipy.optimize import minimize
 
 
+def rel_noise(vector, noise):
+    return torch.max(vector) * noise
+
+
+def get_noise(vector, noise, noise_type='gaussian'):
+    d = {
+        'gaussian': torch.randn_like,
+        'uniform': torch.rand_like,
+    }
+    return vector + rel_noise(vector, noise) * d[noise_type](vector)
+
+
 def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
     if torch.isnan(u).any():
         # count number of NaNs
@@ -28,6 +40,8 @@ def check_nans(u: torch.Tensor, *, name: str = 'output', msg: str = '') -> None:
         )
 
 
+# SourceAmplitudesLegacy: Legacy version using bessel-based weights for amplitude modulation.
+# SourceAmplitudes: Refactored version using linear interpolation for computing amplitude weights.
 class SourceAmplitudesLegacy(torch.nn.Module):
     def __init__(
         self,
@@ -239,7 +253,13 @@ def main(cfg: DictConfig):
 
         return u
 
-    obs_data_true = forward(amps=ref_amplitudes(), msg='True')
+    ref_amps = ref_amplitudes()
+
+    rel_noise = lambda x, y: y * torch.max(x)
+    obs_noise = rel_noise(ref_amps, c.noise.obs) * torch.randn_like(ref_amps)
+    obs_data_true = forward(amps=ref_amps, msg='True') + get_noise(
+        ref_amps, c.noise.obs
+    )
 
     # optimizer = torch.optim.LBFGS(source_amplitudes.parameters(), lr=c.lr)
     # optimizer = NelderMeadOptimizer(source_amplitudes.parameters(), lr=c.lr)
@@ -254,9 +274,9 @@ def main(cfg: DictConfig):
         src_y = c.ny * params[0]
         src_x = c.nx * params[1]
         src_amps = torch.from_numpy(params[2:]).float().to(c.device)
-        
+
         print_progress(params)
-        
+
         u = SourceAmplitudes(
             ny=c.ny,
             nx=c.nx,
@@ -281,11 +301,13 @@ def main(cfg: DictConfig):
 
         print(
             f'src_loc_y={src_loc[0].item()}, src_loc_x={src_loc[1].item()},'
-            f' mse_src_loc={mse_src_loc.item()}, mse_sig={mse_sig.item()}',
+            f' mse_src_loc={mse_src_loc.item()}, mse_sig={mse_sig.item()}'
         )
 
     # start_sig = torch.rand_like(time_sig)
-    start_sig = time_sig + c.noise_level * torch.randn_like(time_sig) * time_sig.max()
+    start_sig = (
+        time_sig + c.noise.start * torch.randn_like(time_sig) * time_sig.max()
+    )
     final = np.concatenate((c.init_loc, start_sig.numpy()), axis=0)
     result = minimize(
         my_function,
