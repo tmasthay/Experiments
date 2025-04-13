@@ -1,5 +1,8 @@
 #
-# @VS@ cd _dir/../.. && python gpt.py 
+# @VS@ cd _dir/../.. && python a.py 
+defaults:
+  - hydra: hydra_defaults
+  - _self_
 
 # Grid and geometry settings
 grid:
@@ -9,6 +12,7 @@ grid:
 
 # Simulation parameters
 simulation:
+  __call__: ^identity 
   dt: 0.001            # Time step (seconds)
   nt: 1000             # Number of time steps
   pml_freq: 25.0       # Frequency for absorbing boundaries (PML)
@@ -16,8 +20,13 @@ simulation:
 # Source settings
 source:
   freq: ${simulation.pml_freq}          # Source wavelet frequency (Hz)
-  peak_time: 0.04      # Peak time (s)
-  mu_x: 25.0           # Initial guess for Gaussian mean in x
+  peak_time: 
+    __call__: ^..inverse_freq
+    factor: 1.0
+    freq: ${..freq}      # Peak time (s)
+  mu_x: 
+    __call__: ^..dummy
+    val: 25.0           # Initial guess for Gaussian mean in x
   mu_y: 25.0           # Initial guess for Gaussian mean in y
   sigma_x: 5.0         # Initial guess for Gaussian sigma_x
   sigma_y: 5.0         # Initial guess for Gaussian sigma_y
@@ -29,7 +38,12 @@ velocity: 1500
 
 # Receiver geometry (list of [x, y] pairs)
 receivers:
-  locations: [[25, 0], [25, 10], [25, 20], [25, 30], [25, 40], [25, 49]]
+  __call__: ^^|misfit_toys.utils|gen_to_tensor
+  gen:
+    __call__: ^^|itertools|product
+    args:
+      - [25]
+      - [0, 10, 20, 30, 40, 49]
 
 # Observed data placeholder (should be replaced with real data)
 data:
