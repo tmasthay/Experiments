@@ -1,5 +1,13 @@
+# 
+# @VS@ cd _dir && python -W ignore _file
+
 import hydra
+from time import time
+
+start_load_torch  = time()
 import torch
+end_load_torch = time()
+print(f"torch load time: {end_load_torch - start_load_torch:.5e} seconds")
 import deepwave
 import numpy as np
 from omegaconf import DictConfig, OmegaConf

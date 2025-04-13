@@ -12,7 +12,7 @@ grid:
 
 # Simulation parameters
 simulation:
-  __call__: ^identity 
+  # __call__: ^identity deprecated dummy test
   dt: 0.001            # Time step (seconds)
   nt: 1000             # Number of time steps
   pml_freq: 25.0       # Frequency for absorbing boundaries (PML)
@@ -37,13 +37,11 @@ num_sources: 50        # Number of sources to activate
 velocity: 1500
 
 # Receiver geometry (list of [x, y] pairs)
-receivers:
-  __call__: ^^|misfit_toys.utils|gen_to_tensor
-  gen:
-    __call__: ^^|itertools|product
-    args:
-      - [25]
-      - [0, 10, 20, 30, 40, 49]
+rec_loc:
+  __call__: ^cartesian
+  y: [0, 10, 20, 30, 40, 49]
+  x: [25]
+  device: ${device}
 
 # Observed data placeholder (should be replaced with real data)
 data:
@@ -54,7 +52,4 @@ optim:
   maxiter: 200         # Maximum number of iterations
 
 # Device settings
-use_gpu: true          # Use GPU if available
-
-_tmp_: 
-  peak_time_factor: 1.0
+device: cuda:0         # Use GPU if available
