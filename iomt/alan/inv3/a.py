@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 from mh.core import DotDict as DD, DotDictImmutable as DDI
 
 def preprocessCfg(cfg: DictConfig):
-    c = DD(OmegaConf.to_container)
+    c = DD(OmegaConf.to_container(cfg, resolve=True))
     return c
 
 @hydra.main(config_path="all/a", config_name="default", version_base=None)
