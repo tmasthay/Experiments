@@ -1,0 +1,4 @@
+defaults:
+  - data: default
+  - operations: default
+  - _self_
