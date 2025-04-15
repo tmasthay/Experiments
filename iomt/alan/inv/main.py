@@ -11,7 +11,7 @@ from misfit_toys.fwi.seismic_data import ParamConstrained, Param
 import hydra
 from omegaconf import OmegaConf, DictConfig
 from dotmap import DotMap
-from mh.core import hydra_out, DotDict
+from mh.core import hydra_out, DotDict, Tee
 from misfit_toys.swiffer import dupe
 from helpers import EasyW1Loss
 from scipy.optimize import minimize
@@ -168,12 +168,13 @@ class MyL2Loss(torch.nn.Module):
         return torch.nn.functional.mse_loss(x, self.target)
 
 
-@hydra.main(config_path='cfg', config_name='cfg', version_base=None)
+@hydra.main(config_path='cfg', config_name='default', version_base=None)
+@Tee.hydra_tee
 def main(cfg: DictConfig):
     c = preprocess_cfg(cfg)
-
-    if c.get('dupe', True):
-        dupe(hydra_out('stream'), verbose=True, editor=c.get('editor', None))
+    
+    with open(hydra_out('git_info.txt'), 'w') as f:
+        f.write(git_dump_info())
 
     # Put one source in each velocity model cell
     source_locations_all = (
@@ -310,14 +311,17 @@ def main(cfg: DictConfig):
         obs_data = forward(amps=u(), msg='True')
         return loss(obs_data).sum().item()
     
+    
     result = minimize(my_function, [c.init_loc[0], c.init_loc[1]], method='Nelder-Mead', options={'xatol': 1e-8, 'disp': True})
 
+    print(f'Optimization Result: initial={c.init_loc} --> final={result.x}')
     # with open('.latest', 'w') as f:
     #     f.write(f'cd {hydra_out()}')
 
     # print('To see the results of this run, run\n    . .latest')
     
     print("Optimization Result:", result)
+
 
 
 if __name__ == "__main__":

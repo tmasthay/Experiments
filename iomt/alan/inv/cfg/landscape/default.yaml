@@ -1,3 +1,7 @@
+defaults:
+  - hydra: ../default
+  - _self_
+  
 # ny: 120
 # nx: 130
 # nt: 1000
