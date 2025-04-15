@@ -1,0 +1,7 @@
+vp: 
+  __call_vp__: ^..simple
+  model: 1500
+  shape: ${.._priv.shape}
+  device: ${device}
+  trainable: false
+  

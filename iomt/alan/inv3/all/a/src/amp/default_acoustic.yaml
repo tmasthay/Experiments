@@ -1,0 +1,14 @@
+rt: 
+  __call_src_amp__: ^...linear
+  src_locs: self_src_amp.src.loc
+  disc: ${disc}
+  device: ${device}
+
+truth:
+  __call_src_amp__: ^...ricker_dirac
+  disc: ${disc}
+  loc: 0.5
+  peak_time_factor: 1.0
+  freq: ${forward.pml_freq}
+  src_locs: self_src_amp.src.loc
+  device: ${device}

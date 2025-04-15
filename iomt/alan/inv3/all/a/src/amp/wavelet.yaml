@@ -1,0 +1,7 @@
+__call_src_amp__:
+  freq: ${forward.pml_freq}          # Source wavelet frequency (Hz)
+  peak_time: 
+    __call_pre__: ^^|operator|truediv
+    args: 
+      - 1.0
+      - ${..freq}          # Peak time (s)

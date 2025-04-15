@@ -1,0 +1,4 @@
+# __call_optim__: ^simple
+# cls: sgd
+# params: {}
+# lr: 0.01

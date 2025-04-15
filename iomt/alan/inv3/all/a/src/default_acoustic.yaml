@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+  - amp: default
+  - loc: default
+
+nshots: 1
+

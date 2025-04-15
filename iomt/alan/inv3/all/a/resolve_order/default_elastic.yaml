@@ -1,0 +1,39 @@
+  "0": 
+    key: prim
+    check: ^always_true
+  "1": 
+    key: rho
+    check: null
+  "2": 
+    key: vp
+    check: null
+  "3": 
+    key: vs
+    check: null
+  "4": 
+    key: rec_loc_y
+    check: null
+  "5":
+    key: rec_loc_x
+    check: null
+  "6":
+    key: src_loc_y
+    check: null
+  "7":
+    key: src_loc_x
+    check: null
+  "8":
+    key: src_amp_y
+    check: null
+  "9":
+    key: src_amp_x
+    check: null
+  "10":
+    key: setup
+    check: null
+  "11":
+    key: main
+    check: null
+  "12": 
+    key: post
+    check: null

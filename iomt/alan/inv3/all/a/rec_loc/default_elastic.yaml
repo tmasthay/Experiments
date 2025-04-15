@@ -1,0 +1,7 @@
+y: 
+  __call_prim__: ^..cartesian
+  y: [0, 10, 20, 30, 40, 49]
+  x: [25]
+  device: ${device}
+
+x: ${.y}

@@ -1,0 +1,11 @@
+defaults:
+- _self_
+- optim: default
+
+max_epochs: 100
+cauchy_tolerance: 1e-4
+verbosity: 1
+checkpoint_interval: null # non-null not currently supported
+log_freq: 10
+# num_gpus: all -- not currently supported, we will return this 
+seed: null # null means we don't explicitly set the seed

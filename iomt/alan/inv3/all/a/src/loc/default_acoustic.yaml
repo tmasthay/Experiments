@@ -1,0 +1,10 @@
+__call_src_loc__: ^uniform_scaled
+ly: 0.1
+ry: 0.9
+nry: 0.2
+ny: ${disc.ny}
+lx: 0.1
+rx: 0.9
+nrx: 0.2
+nx: ${disc.nx}
+device: ${device}

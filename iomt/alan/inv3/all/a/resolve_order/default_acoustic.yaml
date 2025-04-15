@@ -1,0 +1,30 @@
+"0":
+  key: prim
+  check: ^always_true
+"1":
+  key: vp
+  check: null
+"2":
+  key: rec_loc
+  check: null
+"3":
+  key: src_loc
+  check: null
+"4":
+  key: src_amp
+  check: null
+"5":
+  key: forward
+  check: null
+"6":
+  key: obs
+  check: null
+"7":
+  key: optim
+  check: null
+"8":
+  key: main
+  check: null
+"9":
+  key: post
+  check: null

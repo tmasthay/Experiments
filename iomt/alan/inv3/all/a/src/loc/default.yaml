@@ -1,0 +1,7 @@
+#
+# We will actually detach this file from the main config file for now.
+# The reason is that we are attempting to parameterize the source locations
+
+defaults:
+- _self_
+- default_acoustic

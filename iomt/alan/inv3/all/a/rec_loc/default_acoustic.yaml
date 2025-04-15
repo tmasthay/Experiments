@@ -1,0 +1,8 @@
+__call_prim__: ^uniform_scaled
+depth: 0.04
+left: 0.1
+right: 0.9
+num_recs: 0.25
+device: ${device}
+nx: ${disc.nx}
+ny: ${disc.ny}

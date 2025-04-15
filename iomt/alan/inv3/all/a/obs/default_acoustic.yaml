@@ -1,0 +1,5 @@
+__call_obs__: ^simple
+forward: self_obs.forward
+vp: self_obs.medium.vp
+device: ${device}
+path: obs

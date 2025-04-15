@@ -1,0 +1,4 @@
+__call_forward__: ^acoustic
+disc: ${disc}
+pml_freq: 25.0
+time_pad_frac: 0.1

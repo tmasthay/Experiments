@@ -1,0 +1,18 @@
+vp: 
+  __call_vp__: ^..simple
+  model: 1500
+  shape: ${.._priv.shape}
+  device: ${device}
+
+vs: 
+  __call_vs__: ^..simple
+  model: 1200
+  shape: ${.._priv.shape}
+  device: ${device}
+
+rho:
+  __call_rho__: ^..simple
+  model: 1000
+  shape: ${.._priv.shape}
+  device: ${device}
+  
