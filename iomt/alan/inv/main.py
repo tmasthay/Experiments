@@ -314,7 +314,7 @@ def main(cfg: DictConfig):
     
     result = minimize(my_function, [c.init_loc[0], c.init_loc[1]], method='Nelder-Mead', options={'xatol': 1e-8, 'disp': True})
 
-    print(f'Optimization Result: initial={c.init_loc} --> final={result.x}')
+    print(f'Optimization Result: initial={c.init_loc} --> {result.x}')
     # with open('.latest', 'w') as f:
     #     f.write(f'cd {hydra_out()}')
 
