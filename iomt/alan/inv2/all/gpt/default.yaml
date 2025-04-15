@@ -23,8 +23,8 @@ source:
   peak_time: 0.04      # Peak time (s)
   mu_x: 25.0           # Initial guess for Gaussian mean in x
   mu_y: 25.0           # Initial guess for Gaussian mean in y
-  sigma_x: 5.0         # Initial guess for Gaussian sigma_x
-  sigma_y: 5.0         # Initial guess for Gaussian sigma_y
+  sigma_x: 1.0         # Initial guess for Gaussian sigma_x
+  sigma_y: 1.0         # Initial guess for Gaussian sigma_y
 
 num_sources: all        # Number of sources to activate
 
@@ -50,5 +50,5 @@ device: cuda:0
 
 _tmp_:
   peak_time_factor: 1.0
-  init_loc: [0.5, 0.5]
+  init_loc: [0.5, 0.9]
   ref_loc: [0.5, 0.5]

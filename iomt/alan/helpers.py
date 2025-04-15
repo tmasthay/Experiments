@@ -257,7 +257,7 @@ def load_clamp_vs(
     vp: torch.Tensor,
     rel_vp_scaling: float,
     global_scaling: float,
-    min_vs: float,
+    min_vs: float=None,
 ):
     # .707 approx 1/sqrt(2)
     assert 0.0 < rel_vp_scaling <= 0.707
@@ -278,6 +278,8 @@ def load_clamp_vs(
     zero_idx = vs == 0.0
     vs[zero_idx] = vp[zero_idx] * rel_vp_scaling
 
+    if min_vs is None:
+        min_vs = float("inf")
     true_min = min(0.707 * vp.min(), min_vs)
     vs = torch.clamp(vs, min=true_min)
     # vs = torch.clamp(vs, min=min(torch.sqrt(torch.tensor(2.0)) * vp.min(), min_vs))

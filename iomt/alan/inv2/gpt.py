@@ -1,3 +1,4 @@
+import functools
 import hydra
 import torch
 import deepwave
@@ -5,6 +6,89 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from scipy.optimize import minimize
 from mh.core import DotDict as DD, DotDictImmutable as DDI
+from helpers import l2_loss, eff_quasi_w1_loss
+
+import sys
+
+class Tee:
+    def __init__(self, filename, mode="w"):
+        self.file = open(filename, mode)
+        self.stdout = sys.stdout
+
+    def write(self, data):
+        self.stdout.write(data)
+        self.file.write(data)
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = self
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self._original_stdout
+        self.file.close()
+        
+def tee_output(filename, mode="w"):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with Tee(filename, mode):
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+def hydra_tee(func):
+    @functools.wraps(func)
+    def wrapper(cfg, *args, **kwargs):
+        dupe_filename = getattr(cfg, "dupe", None)
+        if dupe_filename:
+            with Tee(dupe_filename):
+                return func(cfg, *args, **kwargs)
+        else:
+            return func(cfg, *args, **kwargs)
+    return wrapper
+
+# Example usage:
+# with Tee("output.log"):
+#     print("This message will go to both stdout and the file.")
+
+def cp(*args, device):
+    grids = [torch.linspace(start, end, num) for start, end, num in args]
+    return torch.cartesian_prod(*grids).to(device)
+
+
+def rel_cp(*args, device):
+    grids = [torch.linspace(start * dx, end * dx, num) for dx, start, end, num in args]
+    return torch.cartesian_prod(*grids).to(device)
+
+
+def rel_cp_int(*args, device):
+    pts = rel_cp(*args, device=device)
+    return torch.unique(pts.long(), dim=0)
+
+
+def preprocess_cfg(cfg: DictConfig):
+    c = DD(OmegaConf.to_container(cfg, resolve=True))
+    c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
+    c.init_loc = [c._tmp_.init_loc[0] * c.grid.ny, c._tmp_.init_loc[1] * c.grid.nx]
+    c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
+    c.grid.shape = [c.grid.ny, c.grid.nx]
+    c.receivers.locations = rel_cp_int(*c.receivers.locations, device=c.device)[None, :, :]
+    if c.device.startswith('cuda') and torch.cuda.is_available():
+        c.device = torch.device(c.device)
+    else:
+        c.device = torch.device('cpu')
+    del c._tmp_
+
+    if c.num_sources == 'all':
+        c.num_sources = c.grid.nx * c.grid.ny - 4
+    c = DDI(c)
+    rt = DD({})
+    return c, rt
 
 
 def get_velocity(model, shape, device):
@@ -16,214 +100,116 @@ def get_velocity(model, shape, device):
         v = torch.tensor(model, device=device, dtype=torch.float32)
     else:
         raise ValueError(f"Unsupported velocity model format: {type(model)}")
-
-    v.requires_grad_(False)  # we are not optimizing velocity in this task
+    v.requires_grad_(False)
     return v
-
-
-def cp(*args, device):
-    grids = [torch.linspace(start, end, num) for start, end, num in args]
-    return torch.cartesian_prod(*grids).to(device)
-
-
-def rel_cp(*args, device):
-    grids = [
-        torch.linspace(start * dx, end * dx, num)
-        for dx, start, end, num in args
-    ]
-    return torch.cartesian_prod(*grids).to(device)
-
-
-def rel_cp_int(*args, device):
-    u = rel_cp(*args, device=device)
-    v = u.long()
-    # remove duplicates
-    v = torch.unique(v, dim=0)
-    return v
-
-
-def preprocess_cfg(cfg: DictConfig):
-    c = DD(OmegaConf.to_container(cfg, resolve=True))
-    c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
-    c.init_loc = [
-        c._tmp_.init_loc[0] * c.grid.ny,
-        c._tmp_.init_loc[1] * c.grid.nx,
-    ]
-    c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
-    c.grid.shape = [c.grid.ny, c.grid.nx]
-    c.receivers.locations = rel_cp_int(*c.receivers.locations, device=c.device)[
-        None, :, :
-    ]
-    if c.device.startswith('cuda') and torch.cuda.is_available():
-        c.device = torch.device(c.device)
-    else:
-        c.device = torch.device('cpu')
-    del c._tmp_
-    
-    if c.num_sources == 'all':
-        c.num_sources = c.grid.nx * c.grid.ny - 4
-    c = DDI(c)
-    rt = DD({})
-    return c, rt
 
 
 @hydra.main(config_path="all/gpt", config_name="default", version_base=None)
+@hydra_tee
 def main(cfg: DictConfig):
-    # Preprocess configuration
+    # Preprocess configuration (keep as-is)
     c, rt = preprocess_cfg(cfg)
-
     device = c.device
-
-    # Load or initialize the wavespeed (velocity) model
-    # Assuming cfg contains necessary fields or file paths for velocity
     v = get_velocity(c.velocity, c.grid.shape, device)
 
-    # Simulation parameters from config
-    nx, ny = c.grid.nx, c.grid.ny  # grid dimensions (50 x 50)
-    dt = c.simulation.dt  # time step interval
-    nt = c.simulation.nt  # number of time steps
-    num_sources = c.num_sources  # e.g., 50
-    # Gaussian initial parameters
-    mu_x0 = c.source.mu_x
-    mu_y0 = c.source.mu_y
-    sigma_x0 = c.source.sigma_x
-    sigma_y0 = c.source.sigma_y
+    nx, ny = c.grid.nx, c.grid.ny
+    dt, nt = c.simulation.dt, c.simulation.nt
+    num_sources = c.num_sources
 
-    # Prepare receiver locations (assuming these are provided or configured)
-    # If cfg contains receiver geometry (e.g., number and positions):
-    assert c.receivers.locations.dim() == 3, (
-        "Receiver locations should be 3D tensor (n_shots, n_receivers, 2), got"
-        f" {c.receivers.locations.shape=}"
-    )
+    # Generate source wavelet and send to device.
+    wavelet = deepwave.wavelets.ricker(c.source.freq, nt, dt, c.source.peak_time).to(device)
+    receivers = c.receivers.locations
 
-    # Generate source wavelet (e.g., Ricker) to use for all sources
-    freq = c.source.freq
-    peak_time = c.source.peak_time
-    wavelet = deepwave.wavelets.ricker(freq, nt, dt, peak_time)  # shape (nt,)
-    wavelet = wavelet.to(device)  # move to device for simulation
-
-    ref_src_loc = torch.tensor(c.ref_loc, dtype=torch.long, device=device)[
-        None, None, :
-    ]  # shape (1, 1, 2)
-    ref_src_amp = wavelet.unsqueeze(0).unsqueeze(0)  # shape (1, 1, nt)
+    # Create observed data using a reference source.
+    ref_src_loc = torch.tensor(c.ref_loc, dtype=torch.long, device=device)[None, None, :]
+    ref_src_amp = wavelet.unsqueeze(0).unsqueeze(0)
     observed_data = deepwave.scalar(
         v,
         c.grid.spacing,
         dt,
         source_amplitudes=ref_src_amp,
         source_locations=ref_src_loc,
-        receiver_locations=c.receivers.locations,
-        pml_freq=c.simulation.pml_freq,  # use PML frequency from config (if provided)
+        receiver_locations=receivers,
+        pml_freq=c.simulation.pml_freq,
     )[-1]
 
-    # Define the objective function that given (mu_x, mu_y, sigma_x, sigma_y) computes misfit
-    def misfit(params: np.ndarray) -> float:
-        mu_x, mu_y, sigma_x, sigma_y = params.astype(float)
-        mu_x_t = torch.tensor(mu_x, dtype=torch.float32, device=device)
-        mu_y_t = torch.tensor(mu_y, dtype=torch.float32, device=device)
-        sigma_x_t = torch.tensor(sigma_x, dtype=torch.float32, device=device)
-        sigma_y_t = torch.tensor(sigma_y, dtype=torch.float32, device=device)
+    # Optimize parameters: [mu_x, mu_y, log(sigma_x), log(sigma_y)]
+    x0 = np.array(
+        [c.source.mu_x, c.source.mu_y, np.log(c.source.sigma_x), np.log(c.source.sigma_y)],
+        dtype=float,
+    )
 
-        # Create coordinate grids for the 50x50 area
+    loss = eff_quasi_w1_loss(observed_data, torch.nn.functional.softplus)
+    
+    def misfit(params: np.ndarray) -> float:
+        mu_x, mu_y, log_sigma_x, log_sigma_y = params.astype(float)
+        # Constrain sigma to be positive via exp transform.
+        sigma_x = torch.exp(torch.tensor(log_sigma_x, device=device, dtype=torch.float32))
+        sigma_y = torch.exp(torch.tensor(log_sigma_y, device=device, dtype=torch.float32))
+        mu_x_t = torch.tensor(mu_x, device=device, dtype=torch.float32)
+        mu_y_t = torch.tensor(mu_y, device=device, dtype=torch.float32)
+
+        # Construct 2D grid.
         x_coords = torch.arange(nx, device=device, dtype=torch.float32)
         y_coords = torch.arange(ny, device=device, dtype=torch.float32)
-        Y_grid, X_grid = torch.meshgrid(
-            y_coords, x_coords, indexing='ij'
-        )  # shape (ny, nx)
+        Y_grid, X_grid = torch.meshgrid(y_coords, x_coords, indexing='ij')
 
-        # Compute Gaussian weight at each grid point
-        exp_arg = ((X_grid - mu_x_t) ** 2 / (2 * sigma_x_t**2)) + (
-            (Y_grid - mu_y_t) ** 2 / (2 * sigma_y_t**2)
-        )
+        # Gaussian weight with a 3-sigma cutoff.
+        exp_arg = ((X_grid - mu_x_t) ** 2 / (2 * sigma_x ** 2)) + ((Y_grid - mu_y_t) ** 2 / (2 * sigma_y ** 2))
         weight_grid = torch.exp(-exp_arg)
-        # Apply hard cutoff outside 3-sigma ellipse
-        mask = ((X_grid - mu_x_t) / sigma_x_t) ** 2 + (
-            (Y_grid - mu_y_t) / sigma_y_t
-        ) ** 2 <= 9.0  # 3-sigma support
-        weight_grid = weight_grid * mask.float()
+        
+        do_mask = False
+        if do_mask: 
+            mask = (((X_grid - mu_x_t) / sigma_x) ** 2 + ((Y_grid - mu_y_t) / sigma_y) ** 2 <= 9.0)
+            weight_grid *= mask.float()
 
-        # Flatten the weights and select top-K strongest points
-        weight_flat = weight_grid.view(-1)  # length nx*ny
-        # Get top `num_sources` values and their indices (in descending order of weight)
-        topk_vals, topk_idx = torch.topk(
-            weight_flat, k=num_sources, largest=True, sorted=True
-        )
-        # Convert flat indices to 2D grid indices
-        topk_y = topk_idx // nx  # integer division to get row (y-index)
-        topk_x = topk_idx % nx  # remainder to get col (x-index)
-        # Stack into (x,y) coordinates for each source
-        coords = torch.stack(
-            (topk_x, topk_y), dim=1
-        ).long()  # shape (num_sources, 2)
-        coords = coords.unsqueeze(0).to(
-            device
-        )  # shape (1, num_sources, 2) for one shot
+            weight_flat = weight_grid.view(-1)
+            topk_vals, topk_idx = torch.topk(weight_flat, k=num_sources, largest=True, sorted=True)
+            topk_y = topk_idx // nx
+            topk_x = topk_idx % nx
+            coords = torch.stack((topk_x, topk_y), dim=1).long().unsqueeze(0).to(device)
+            src_amp = (topk_vals.unsqueeze(1) * wavelet.unsqueeze(0)).unsqueeze(0).to(device)
+        else:
+            src_amp = weight_grid.view(-1).unsqueeze(0) * wavelet.unsqueeze(0)
+            
+            # coords are just the original source locations since no filtering
+            coords = cp(
+                (0, nx - 1, nx), (0, ny - 1, ny), device=device
+            ).long().unsqueeze(0)
 
-        # Construct source amplitude tensor for Deepwave: shape [1, num_sources, nt]
-        # Scale the base wavelet for each source by that source's Gaussian weight
-        # `topk_vals` are the weights for each selected source (length num_sources)
-        # Expand and multiply to get a full time series per source:
-        source_amplitudes = topk_vals.unsqueeze(1) * wavelet.unsqueeze(
-            0
-        )  # shape (num_sources, nt)
-        source_amplitudes = source_amplitudes.unsqueeze(0).to(
-            device
-        )  # shape (1, num_sources, nt)
-
-        # Run Deepwave forward modeling with these sources
-        out = deepwave.scalar(
+        sim_data = deepwave.scalar(
             v,
             c.grid.spacing,
             dt,
-            source_amplitudes=source_amplitudes,
+            source_amplitudes=src_amp,
             source_locations=coords,
-            receiver_locations=c.receivers.locations,
-            pml_freq=c.simulation.pml_freq,  # use PML frequency from config (if provided)
-        )
-        # Deepwave returns a tuple; the last element is the receivers' recorded data&#8203;:contentReference[oaicite:6]{index=6}
-        simulated_data = out[-1]  # shape: [n_shots, n_receivers, nt]
+            receiver_locations=receivers,
+            pml_freq=c.simulation.pml_freq,
+        )[-1]
+        # return float(l2_loss(sim_data, observed_data))
+        return float(loss(sim_data))
 
-        # Compute mean squared error between simulated and observed data
-        # (Assume observed_data has shape [n_shots, n_receivers, nt] matching simulated_data)
-        mse_loss = torch.nn.functional.mse_loss(simulated_data, observed_data)
-        return float(mse_loss.item())  # return as Python float for SciPy
+    def callback_wrapper():
+        num_calls = 0
+        def callback(xk):
+            nonlocal num_calls
+            num_calls += 1
+            print(f"Iteration: {num_calls}, Params: [{xk[0]},{xk[1]},{np.exp(xk[2])},{np.exp(xk[3])}], Misfit: {misfit(xk)}")
+        return callback
 
-    # Initial parameter vector for Nelder-Mead
-    x0 = np.array([mu_x0, mu_y0, sigma_x0, sigma_y0], dtype=float)
-    # Run Nelder-Mead optimization to minimize the misfit
-
-    def printing_callback(xk):
-        printing_callback.iteration += 1
-        current_misfit = misfit(xk)
-        true_dist = np.linalg.norm(
-            np.array([c.ref_loc[0] - xk[0], c.ref_loc[1] - xk[1]])
-        )
-        print(
-            f"Iteration {printing_callback.iteration}: parameters = {xk}"
-            f", misfit = {current_misfit}"
-            f", ground_truth = {c.ref_loc}"
-            f", true_distance = {true_dist:.2e}"
-        )
-
-    printing_callback.iteration = 0
     result = minimize(
         misfit,
         x0,
-        method='Nelder-Mead',
-        options={'maxiter': c.optim.maxiter, 'disp': True},
-        callback=printing_callback,
+        method="Nelder-Mead",
+        callback=callback_wrapper(),
+        options={"maxiter": c.optim.maxiter, "disp": True},
     )
 
-    # Output the optimization results
-    optimized_params = (
-        result.x
-    )  # [mu_x, mu_y, sigma_x, sigma_y] that minimize the misfit
+    opt = result.x
     print(
-        f"Optimized Gaussian parameters: mu_x={optimized_params[0]:.3f},"
-        f" mu_y={optimized_params[1]:.3f}, sigma_x={optimized_params[2]:.3f},"
-        f" sigma_y={optimized_params[3]:.3f}"
+        f"Optimized: mu_x={opt[0]}, mu_y={opt[1]}, sigma_x={np.exp(opt[2])}, sigma_y={np.exp(opt[3])}"
     )
-    print(f"Final misfit value: {result.fun:.6f}")
+    print(f"Final misfit: {result.fun}")
 
 
 if __name__ == "__main__":
