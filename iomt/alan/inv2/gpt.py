@@ -21,22 +21,39 @@ def get_velocity(model, shape, device):
     return v
 
 
-
 def cp(*args, device):
     grids = [torch.linspace(start, end, num) for start, end, num in args]
     return torch.cartesian_prod(*grids).to(device)
 
+
 def rel_cp(*args, device):
-    grids = [torch.linspace(start*dx, end*dx, num) for dx, start, end, num in args]
+    grids = [
+        torch.linspace(start * dx, end * dx, num)
+        for dx, start, end, num in args
+    ]
     return torch.cartesian_prod(*grids).to(device)
+
+
+def rel_cp_int(*args, device):
+    u = rel_cp(*args, device=device)
+    v = u.long()
+    # remove duplicates
+    v = torch.unique(v, dim=0)
+    return v
+
 
 def preprocess_cfg(cfg: DictConfig):
     c = DD(OmegaConf.to_container(cfg, resolve=True))
     c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
-    c.init_loc = [c._tmp_.init_loc[0] * c.grid.ny, c._tmp_.init_loc[1] * c.grid.nx]
+    c.init_loc = [
+        c._tmp_.init_loc[0] * c.grid.ny,
+        c._tmp_.init_loc[1] * c.grid.nx,
+    ]
     c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
     c.grid.shape = [c.grid.ny, c.grid.nx]
-    c.receivers.locations = rel_cp(*c.receivers.locations, device=c.device)
+    c.receivers.locations = rel_cp_int(*c.receivers.locations, device=c.device)[
+        None, :, :
+    ]
     if c.device.startswith('cuda') and torch.cuda.is_available():
         c.device = torch.device(c.device)
     else:
@@ -46,17 +63,13 @@ def preprocess_cfg(cfg: DictConfig):
     rt = DD({})
     return c, rt
 
+
 @hydra.main(config_path="all/gpt", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     # Preprocess configuration
     c, rt = preprocess_cfg(cfg)
 
-    # Set up computational device (CPU or GPU)
-    device = torch.device(
-        "cuda"
-        if torch.cuda.is_available() and c.get("use_gpu", False)
-        else "cpu"
-    )
+    device = c.device
 
     # Load or initialize the wavespeed (velocity) model
     # Assuming cfg contains necessary fields or file paths for velocity
@@ -75,16 +88,10 @@ def main(cfg: DictConfig):
 
     # Prepare receiver locations (assuming these are provided or configured)
     # If cfg contains receiver geometry (e.g., number and positions):
-    receiver_locs = (
-        c.receivers.locations
-    )  # could be a list of [x,y] pairs or similar
-    receiver_locations = torch.tensor(receiver_locs, dtype=torch.long).to(
-        device
+    assert c.receivers.locations.dim() == 3, (
+        "Receiver locations should be 3D tensor (n_shots, n_receivers, 2), got"
+        f" {c.receivers.locations.shape=}"
     )
-    # Ensure shape [n_shots, n_receivers, 2]; if only one shot:
-    if receiver_locations.dim() == 2:
-        receiver_locations = receiver_locations.unsqueeze(0)
-    # (If not provided, one could define a default receiver array here.)
 
     # Generate source wavelet (e.g., Ricker) to use for all sources
     freq = c.source.freq
@@ -92,10 +99,9 @@ def main(cfg: DictConfig):
     wavelet = deepwave.wavelets.ricker(freq, nt, dt, peak_time)  # shape (nt,)
     wavelet = wavelet.to(device)  # move to device for simulation
 
-
-    ref_src_loc = torch.tensor(
-        c.ref_loc, dtype=torch.long, device=device
-    )[None, None, :]  # shape (1, 1, 2)
+    ref_src_loc = torch.tensor(c.ref_loc, dtype=torch.long, device=device)[
+        None, None, :
+    ]  # shape (1, 1, 2)
     ref_src_amp = wavelet.unsqueeze(0).unsqueeze(0)  # shape (1, 1, nt)
     observed_data = deepwave.scalar(
         v,
@@ -103,10 +109,10 @@ def main(cfg: DictConfig):
         dt,
         source_amplitudes=ref_src_amp,
         source_locations=ref_src_loc,
-        receiver_locations=receiver_locations,
+        receiver_locations=c.receivers.locations,
         pml_freq=c.simulation.pml_freq,  # use PML frequency from config (if provided)
     )[-1]
-    
+
     # Define the objective function that given (mu_x, mu_y, sigma_x, sigma_y) computes misfit
     def misfit(params: np.ndarray) -> float:
         mu_x, mu_y, sigma_x, sigma_y = params.astype(float)
@@ -168,7 +174,7 @@ def main(cfg: DictConfig):
             dt,
             source_amplitudes=source_amplitudes,
             source_locations=coords,
-            receiver_locations=receiver_locations,
+            receiver_locations=c.receivers.locations,
             pml_freq=c.simulation.pml_freq,  # use PML frequency from config (if provided)
         )
         # Deepwave returns a tuple; the last element is the receivers' recorded data&#8203;:contentReference[oaicite:6]{index=6}
@@ -182,12 +188,15 @@ def main(cfg: DictConfig):
     # Initial parameter vector for Nelder-Mead
     x0 = np.array([mu_x0, mu_y0, sigma_x0, sigma_y0], dtype=float)
     # Run Nelder-Mead optimization to minimize the misfit
-    
+
     def printing_callback(xk):
         printing_callback.iteration += 1
         current_misfit = misfit(xk)
-        print(f"Iteration {printing_callback.iteration}: parameters = {xk}, misfit = {current_misfit}")
-    
+        print(
+            f"Iteration {printing_callback.iteration}: parameters = {xk},"
+            f" misfit = {current_misfit}"
+        )
+
     printing_callback.iteration = 0
     result = minimize(
         misfit,
