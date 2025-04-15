@@ -4,6 +4,7 @@ import deepwave as dw
 import matplotlib.pyplot as plt
 from mh.typlotlib import save_frames, get_frames_bool, bool_slice
 from torch.nn import functional as F
+from mh.core import DotDictImmutable as DDI
 
 
 class IdentityMomentSource(torch.nn.Module):
@@ -146,6 +147,17 @@ def eff_quasi_w1_loss(observed_data, positive_routine):
 
     return helper
 
+def get_grad_clone(t):
+    return None if t.grad is None else t.grad.clone().cpu().numpy()
+
+def get_hist(t):
+    data_clone = t.detach().clone().cpu().numpy()
+    grad_clone = get_grad_clone(t)
+    return {
+        "data": data_clone,
+        "grad": grad_clone,
+    }
+
 
 def main_big():
     device = "cuda:0"
@@ -210,7 +222,9 @@ def main_big():
     syn_data = syn_data.detach()
 
     # _loss = captured_l2_loss(syn_data)
-    _loss = eff_quasi_w1_loss(syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0))
+    _loss = eff_quasi_w1_loss(
+        syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0)
+    )
 
     def get_msg(mu, sig, peak_time, freq, scale, version):
         arr = ['\n\n']
@@ -263,6 +277,9 @@ def main_big():
     optimizer = torch.optim.Adam(source_model.parameters(), lr=1e-2)
     num_epochs = 10000
     abs_loss_tol = 1e-16
+
+    history = []
+    history_freq = 10
     for epoch in range(num_epochs):
         optimizer.zero_grad()
         pred_src_amp = source_model.forward()
@@ -281,6 +298,20 @@ def main_big():
             print(f"Converged at epoch {epoch} with loss {curr_loss:.6f}")
             break
         loss.backward()
+
+        # Then include them in your history:
+        if epoch % history_freq == 0 or epoch == num_epochs - 1:
+            history.append(
+                DDI({
+                    "epoch": epoch,
+                    "mu": get_hist(source_model.mu),
+                    "sig": get_hist(source_model.sig),
+                    "peak_time": get_hist(source_model.peak_time),
+                    "freq": get_hist(source_model.freq),
+                    "scale": get_hist(source_model.scale),
+                    "loss": curr_loss,
+                })
+            )
         optimizer.step()
         if epoch % 10 == 0 or epoch == num_epochs - 1:
             print(f"Epoch {epoch} | Loss: {loss.item():.6e}")
