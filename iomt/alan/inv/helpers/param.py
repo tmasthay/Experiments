@@ -209,8 +209,8 @@ def main_big():
     )[-1]
     syn_data = syn_data.detach()
 
-    _loss = captured_l2_loss(syn_data)
-    # _loss = eff_quasi_w1_loss(syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0))
+    # _loss = captured_l2_loss(syn_data)
+    _loss = eff_quasi_w1_loss(syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0))
 
     def get_msg(mu, sig, peak_time, freq, scale, version):
         arr = ['\n\n']
@@ -283,7 +283,7 @@ def main_big():
         loss.backward()
         optimizer.step()
         if epoch % 10 == 0 or epoch == num_epochs - 1:
-            print(f"Epoch {epoch} | Loss: {loss.item():.6f}")
+            print(f"Epoch {epoch} | Loss: {loss.item():.6e}")
             print(
                 f"mu: {source_model.mu.data.cpu().numpy()}, "
                 f"sig: {source_model.sig.data.cpu().numpy()}, "
