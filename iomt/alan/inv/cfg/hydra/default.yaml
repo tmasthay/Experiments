@@ -1,0 +1,7 @@
+run:
+  # The run dir is set using our custom key
+  dir: .outputs/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  
+sweep:
+  # The sweep (multirun) dir is set using our custom key
+  dir: .outputs/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
