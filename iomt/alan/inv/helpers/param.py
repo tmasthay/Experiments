@@ -22,11 +22,11 @@ class IdentityMomentSource(torch.nn.Module):
         super().__init__()
 
         self.src_loc = src_loc
-        self.mu = torch.nn.Parameter(mu, requires_grad=True).to(device)
-        self.sig = torch.nn.Parameter(sig, requires_grad=True).to(device)
-        self.peak_time = torch.nn.Parameter(peak_time, requires_grad=True).to(device)
-        self.freq = torch.nn.Parameter(freq, requires_grad=True).to(device)
-        self.scale = torch.nn.Parameter(scale, requires_grad=True).to(device) 
+        self.mu = torch.nn.Parameter(mu, requires_grad=mu.requires_grad).to(device)
+        self.sig = torch.nn.Parameter(sig, requires_grad=sig.requires_grad).to(device)
+        self.peak_time = torch.nn.Parameter(peak_time, requires_grad=peak_time.requires_grad).to(device)
+        self.freq = torch.nn.Parameter(freq, requires_grad=freq.requires_grad).to(device)
+        self.scale = torch.nn.Parameter(scale, requires_grad=scale.requires_grad).to(device) 
         self.device = device
         self.num_shots = self.src_loc.shape[0]
         self.num_sources = self.src_loc.shape[1]
@@ -86,7 +86,7 @@ class IdentityMomentSource(torch.nn.Module):
 
 def main_big():
     device = "cuda:0"
-    nt = 100        # Number of time samples
+    nt = 1000        # Number of time samples
     dt = 0.004      # Time sampling interval
     grid_spacing = [10.0, 10.0]
     # Define a simple velocity model
@@ -100,11 +100,11 @@ def main_big():
     # Source location: shape [num_shots, num_sources, 2] (grid indices)
     src_loc = torch.tensor([[[25, 25]]]).int().to(device)
     # Define receiver locations: for example, receivers along the bottom row of the grid.
-    rec_locs = torch.stack(
-        [torch.arange(0, nx).int(), torch.full((nx,), ny - 1, dtype=torch.int)],
-        dim=-1
-    ).unsqueeze(0).to(device) # shape: [1, nx, 2]
-
+    # rec_locs = torch.stack(
+    #     [torch.arange(0, nx).int(), torch.full((nx,), ny - 1, dtype=torch.int)],
+    #     dim=-1
+    # ).unsqueeze(0).to(device) # shape: [1, nx, 2]
+    rec_locs = torch.cartesian_prod(torch.tensor([2]).int(), torch.arange(0, nx, 5).int()).unsqueeze(0).to(device) # shape: [1, nx, 2]
     # Ground-truth source parameters
     true_mu = torch.tensor([25.0, 25.0]).to(device)
     true_sig = torch.tensor([5.0, 5.0]).to(device)
@@ -153,10 +153,10 @@ def main_big():
 
     # Now, create a model with an initial guess for the parameters.
     init_mu = torch.tensor([20.0, 20.0]).to(device).requires_grad_(True)
-    init_sig = torch.tensor([8.0, 8.0]).to(device).requires_grad_(True)
-    init_peak_time = torch.tensor(0.3).to(device).requires_grad_(True)
-    init_freq = torch.tensor(20.0).to(device).requires_grad_(True)
-    init_scale = torch.tensor(0.5).to(device).requires_grad_(True)
+    init_sig = torch.tensor([5.0, 5.0]).to(device).requires_grad_(False)
+    init_peak_time = torch.tensor(0.2).to(device).requires_grad_(False)
+    init_freq = torch.tensor(25.0).to(device).requires_grad_(False)
+    init_scale = torch.tensor(1.0).to(device).requires_grad_(False)
     
     init_msg = get_msg(init_mu, init_sig, init_peak_time, init_freq, init_scale, 'Initial guess:')
     truth_msg = get_msg(true_mu, true_sig, true_peak_time, true_freq, true_scale, 'Ground truth:')
@@ -174,7 +174,7 @@ def main_big():
     )
     # input(list(source_model.parameters()))
     # Use Adam optimizer on the source_model parameters.
-    optimizer = torch.optim.Adam(source_model.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(source_model.parameters(), lr=1e-1)
     num_epochs = 10000
 
     for epoch in range(num_epochs):
