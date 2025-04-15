@@ -36,6 +36,13 @@ def preprocess_cfg(cfg: DictConfig):
     rt = DD({})
     return c, rt
 
+def cp(*args, device):
+    grids = [torch.linspace(start, end, num) for start, end, num in args]
+    return torch.cartesian_prod(*grids).to(device)
+
+def rel_cp(*args, device):
+    grids = [torch.linspace(start*dx, end*dx, num) for dx, start, end, num in args]
+    return torch.cartesian_prod(*grids).to(device)
 
 @hydra.main(config_path="all/gpt", config_name="default", version_base=None)
 def main(cfg: DictConfig):
@@ -173,11 +180,19 @@ def main(cfg: DictConfig):
     # Initial parameter vector for Nelder-Mead
     x0 = np.array([mu_x0, mu_y0, sigma_x0, sigma_y0], dtype=float)
     # Run Nelder-Mead optimization to minimize the misfit
+    
+    def printing_callback(xk):
+        printing_callback.iteration += 1
+        current_misfit = misfit(xk)
+        print(f"Iteration {printing_callback.iteration}: parameters = {xk}, misfit = {current_misfit}")
+    
+    printing_callback.iteration = 0
     result = minimize(
         misfit,
         x0,
         method='Nelder-Mead',
         options={'maxiter': c.optim.maxiter, 'disp': True},
+        callback=printing_callback,
     )
 
     # Output the optimization results
