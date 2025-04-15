@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.txt
 
 # hidden directories (all of them, exceptions made with -f to force add)
 (^|/)\.[^/]+(/|$)
