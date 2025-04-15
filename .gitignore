@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# hidden directories (all of them, exceptions made with -f to force add)
+(^|/)\.[^/]+(/|$)
+
 # C extensions
 *.so
 
