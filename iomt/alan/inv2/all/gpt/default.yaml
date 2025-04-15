@@ -3,8 +3,8 @@
 
 # Grid and geometry settings
 grid:
-  nx: 50
-  ny: 50
+  nx: 500
+  ny: 500
   dy: 10.0
   dx: 10.0
   spacing: 
@@ -26,7 +26,7 @@ source:
   sigma_x: 5.0         # Initial guess for Gaussian sigma_x
   sigma_y: 5.0         # Initial guess for Gaussian sigma_y
 
-num_sources: 50        # Number of sources to activate
+num_sources: all        # Number of sources to activate
 
 # Velocity model settings (constant or file path)
 velocity: 1500
@@ -43,12 +43,12 @@ data:
 
 # Optimization settings
 optim:
-  maxiter: 200         # Maximum number of iterations
+  maxiter: 2000         # Maximum number of iterations
 
 # Device settings
 device: cuda:0
 
 _tmp_:
   peak_time_factor: 1.0
-  init_loc: [0.6, 0.5]
+  init_loc: [0.5, 0.5]
   ref_loc: [0.5, 0.5]
