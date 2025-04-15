@@ -24,30 +24,21 @@ def preprocess_cfg(cfg: DictConfig):
     c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
     c.init_loc = [c._tmp_.init_loc[0] * c.ny, c._tmp_.init_loc[1] * c.nx]
     c.ref_loc = [c._tmp_.ref_loc[0] * c.ny, c._tmp_.ref_loc[1] * c.nx]
-    if c._tmp_.device.startswith('cuda') and torch.cuda.is_available():
-        c.device = torch.device(c._tmp_.device)
-    else:
-        c.device = torch.device('cpu')
-    del c._tmp_
     c = DDI(c)
-    rt = DD({})
-    return c, rt
+    return c
 
 @hydra.main(config_path="all/gpt", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     # Preprocess configuration
-    c, rt = preprocess_cfg(cfg)
-
-    # Set up computational device (CPU or GPU)
-    device = torch.device("cuda" if torch.cuda.is_available() and c.get("use_gpu", False) else "cpu")
+    c = preprocess_cfg(cfg)
 
     # Load or initialize the wavespeed (velocity) model
     # Assuming cfg contains necessary fields or file paths for velocity
-    v = get_velocity(c.velocity, c.grid.shape, device)
+    v = get_velocity(c.velocity, c.grid.shape, c.device)
 
     # Load observed data (recorded waveforms) for comparison
     observed = c.data.observed  # assumed to be provided (e.g., NumPy array or list)
-    observed_data = torch.tensor(observed, dtype=torch.float32).to(device)
+    observed_data = torch.tensor(observed, dtype=torch.float32).to(c.device)
 
     # Simulation parameters from config
     nx, ny = c.grid.nx, c.grid.ny           # grid dimensions (50 x 50)
@@ -63,7 +54,7 @@ def main(cfg: DictConfig):
     # Prepare receiver locations (assuming these are provided or configured)
     # If cfg contains receiver geometry (e.g., number and positions):
     receiver_locs = c.receivers.locations  # could be a list of [x,y] pairs or similar
-    receiver_locations = torch.tensor(receiver_locs, dtype=torch.long).to(device)
+    receiver_locations = torch.tensor(receiver_locs, dtype=torch.long).to(c.device)
     # Ensure shape [n_shots, n_receivers, 2]; if only one shot:
     if receiver_locations.dim() == 2:
         receiver_locations = receiver_locations.unsqueeze(0)
@@ -73,19 +64,19 @@ def main(cfg: DictConfig):
     freq = c.source.freq
     peak_time = c.source.peak_time
     wavelet = deepwave.wavelets.ricker(freq, nt, dt, peak_time)  # shape (nt,)
-    wavelet = wavelet.to(device)  # move to device for simulation
+    wavelet = wavelet.to(c.device)  # move to c.device for simulation
 
     # Define the objective function that given (mu_x, mu_y, sigma_x, sigma_y) computes misfit
     def misfit(params: np.ndarray) -> float:
         mu_x, mu_y, sigma_x, sigma_y = params.astype(float)
-        mu_x_t = torch.tensor(mu_x, dtype=torch.float32, device=device)
-        mu_y_t = torch.tensor(mu_y, dtype=torch.float32, device=device)
-        sigma_x_t = torch.tensor(sigma_x, dtype=torch.float32, device=device)
-        sigma_y_t = torch.tensor(sigma_y, dtype=torch.float32, device=device)
+        mu_x_t = torch.tensor(mu_x, dtype=torch.float32, c.device=c.device)
+        mu_y_t = torch.tensor(mu_y, dtype=torch.float32, c.device=c.device)
+        sigma_x_t = torch.tensor(sigma_x, dtype=torch.float32, c.device=c.device)
+        sigma_y_t = torch.tensor(sigma_y, dtype=torch.float32, c.device=c.device)
 
         # Create coordinate grids for the 50x50 area
-        x_coords = torch.arange(nx, device=device, dtype=torch.float32)
-        y_coords = torch.arange(ny, device=device, dtype=torch.float32)
+        x_coords = torch.arange(nx, c.device=c.device, dtype=torch.float32)
+        y_coords = torch.arange(ny, c.device=c.device, dtype=torch.float32)
         Y_grid, X_grid = torch.meshgrid(y_coords, x_coords, indexing='ij')  # shape (ny, nx)
 
         # Compute Gaussian weight at each grid point
@@ -104,14 +95,14 @@ def main(cfg: DictConfig):
         topk_x = topk_idx % nx   # remainder to get col (x-index)
         # Stack into (x,y) coordinates for each source
         coords = torch.stack((topk_x, topk_y), dim=1).long()  # shape (num_sources, 2)
-        coords = coords.unsqueeze(0).to(device)  # shape (1, num_sources, 2) for one shot
+        coords = coords.unsqueeze(0).to(c.device)  # shape (1, num_sources, 2) for one shot
 
         # Construct source amplitude tensor for Deepwave: shape [1, num_sources, nt]
         # Scale the base wavelet for each source by that source's Gaussian weight
         # `topk_vals` are the weights for each selected source (length num_sources)
         # Expand and multiply to get a full time series per source:
         source_amplitudes = (topk_vals.unsqueeze(1) * wavelet.unsqueeze(0))  # shape (num_sources, nt)
-        source_amplitudes = source_amplitudes.unsqueeze(0).to(device)       # shape (1, num_sources, nt)
+        source_amplitudes = source_amplitudes.unsqueeze(0).to(c.device)       # shape (1, num_sources, nt)
 
         # Run Deepwave forward modeling with these sources
         out = deepwave.scalar(

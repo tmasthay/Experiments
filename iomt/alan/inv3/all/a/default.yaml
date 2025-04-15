@@ -3,53 +3,14 @@
 defaults:
   - hydra: hydra_defaults
   - _self_
-
-# Grid and geometry settings
-grid:
-  nx: 50
-  ny: 50
-  spacing: [10.0, 10.0]  # dy, dx in meters
-
-# Simulation parameters
-simulation:
-  # __call__: ^identity deprecated dummy test
-  dt: 0.001            # Time step (seconds)
-  nt: 1000             # Number of time steps
-  pml_freq: 25.0       # Frequency for absorbing boundaries (PML)
-
-# Source settings
-source:
-  freq: ${simulation.pml_freq}          # Source wavelet frequency (Hz)
-  peak_time: 
-    __call__: ^..inverse_freq
-    factor: 1.0
-    freq: ${..freq}      # Peak time (s)
-  mu_x: 
-    __call__: ^..dummy
-    val: 25.0           # Initial guess for Gaussian mean in x
-  mu_y: 25.0           # Initial guess for Gaussian mean in y
-  sigma_x: 5.0         # Initial guess for Gaussian sigma_x
-  sigma_y: 5.0         # Initial guess for Gaussian sigma_y
-
-num_sources: 50        # Number of sources to activate
-
-# Velocity model settings (constant or file path)
-velocity: 1500
-
-# Receiver geometry (list of [x, y] pairs)
-rec_loc:
-  __call__: ^cartesian
-  y: [0, 10, 20, 30, 40, 49]
-  x: [25]
-  device: ${device}
-
-# Observed data placeholder (should be replaced with real data)
-data:
-  observed: null       # e.g., "./observed_data.pt"
-
-# Optimization settings
-optim:
-  maxiter: 200         # Maximum number of iterations
+  - disc: default
+  - medium: default
+  - resolve_order: default
+  - rec_loc: default
+  - src: default
+  - forward: default
+  - obs: default
+  - train: default
 
 # Device settings
 device: cuda:0         # Use GPU if available

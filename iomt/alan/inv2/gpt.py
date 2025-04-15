@@ -24,10 +24,11 @@ def get_velocity(model, shape, device):
 def preprocess_cfg(cfg: DictConfig):
     c = DD(OmegaConf.to_container(cfg, resolve=True))
     c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
-    c.init_loc = [c._tmp_.init_loc[0] * c.ny, c._tmp_.init_loc[1] * c.nx]
-    c.ref_loc = [c._tmp_.ref_loc[0] * c.ny, c._tmp_.ref_loc[1] * c.nx]
-    if c._tmp_.device.startswith('cuda') and torch.cuda.is_available():
-        c.device = torch.device(c._tmp_.device)
+    c.init_loc = [c._tmp_.init_loc[0] * c.grid.ny, c._tmp_.init_loc[1] * c.grid.nx]
+    c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
+    c.grid.shape = [c.grid.ny, c.grid.nx]
+    if c.device.startswith('cuda') and torch.cuda.is_available():
+        c.device = torch.device(c.device)
     else:
         c.device = torch.device('cpu')
     del c._tmp_
@@ -51,12 +52,6 @@ def main(cfg: DictConfig):
     # Load or initialize the wavespeed (velocity) model
     # Assuming cfg contains necessary fields or file paths for velocity
     v = get_velocity(c.velocity, c.grid.shape, device)
-
-    # Load observed data (recorded waveforms) for comparison
-    observed = (
-        c.data.observed
-    )  # assumed to be provided (e.g., NumPy array or list)
-    observed_data = torch.tensor(observed, dtype=torch.float32).to(device)
 
     # Simulation parameters from config
     nx, ny = c.grid.nx, c.grid.ny  # grid dimensions (50 x 50)
@@ -88,6 +83,21 @@ def main(cfg: DictConfig):
     wavelet = deepwave.wavelets.ricker(freq, nt, dt, peak_time)  # shape (nt,)
     wavelet = wavelet.to(device)  # move to device for simulation
 
+
+    ref_src_loc = torch.tensor(
+        c.ref_loc, dtype=torch.long, device=device
+    )[None, None, :]  # shape (1, 1, 2)
+    ref_src_amp = wavelet.unsqueeze(0).unsqueeze(0)  # shape (1, 1, nt)
+    observed_data = deepwave.scalar(
+        v,
+        c.grid.spacing,
+        dt,
+        source_amplitudes=ref_src_amp,
+        source_locations=ref_src_loc,
+        receiver_locations=receiver_locations,
+        pml_freq=c.simulation.pml_freq,  # use PML frequency from config (if provided)
+    )[-1]
+    
     # Define the objective function that given (mu_x, mu_y, sigma_x, sigma_y) computes misfit
     def misfit(params: np.ndarray) -> float:
         mu_x, mu_y, sigma_x, sigma_y = params.astype(float)
