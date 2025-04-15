@@ -29,7 +29,7 @@ velocity: 1500
 
 # Receiver geometry (list of [x, y] pairs)
 receivers:
-  locations: [[25, 0], [25, 10], [25, 20], [25, 30], [25, 40], [25, 49]]
+  - []
 
 # Observed data placeholder (should be replaced with real data)
 data:
