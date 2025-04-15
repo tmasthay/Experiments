@@ -21,20 +21,6 @@ def get_velocity(model, shape, device):
     return v
 
 
-def preprocess_cfg(cfg: DictConfig):
-    c = DD(OmegaConf.to_container(cfg, resolve=True))
-    c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
-    c.init_loc = [c._tmp_.init_loc[0] * c.grid.ny, c._tmp_.init_loc[1] * c.grid.nx]
-    c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
-    c.grid.shape = [c.grid.ny, c.grid.nx]
-    if c.device.startswith('cuda') and torch.cuda.is_available():
-        c.device = torch.device(c.device)
-    else:
-        c.device = torch.device('cpu')
-    del c._tmp_
-    c = DDI(c)
-    rt = DD({})
-    return c, rt
 
 def cp(*args, device):
     grids = [torch.linspace(start, end, num) for start, end, num in args]
@@ -43,6 +29,22 @@ def cp(*args, device):
 def rel_cp(*args, device):
     grids = [torch.linspace(start*dx, end*dx, num) for dx, start, end, num in args]
     return torch.cartesian_prod(*grids).to(device)
+
+def preprocess_cfg(cfg: DictConfig):
+    c = DD(OmegaConf.to_container(cfg, resolve=True))
+    c.source.peak_time = c._tmp_.peak_time_factor / c.simulation.pml_freq
+    c.init_loc = [c._tmp_.init_loc[0] * c.grid.ny, c._tmp_.init_loc[1] * c.grid.nx]
+    c.ref_loc = [c._tmp_.ref_loc[0] * c.grid.ny, c._tmp_.ref_loc[1] * c.grid.nx]
+    c.grid.shape = [c.grid.ny, c.grid.nx]
+    c.receivers.locations = rel_cp(*c.receivers.locations, device=c.device)
+    if c.device.startswith('cuda') and torch.cuda.is_available():
+        c.device = torch.device(c.device)
+    else:
+        c.device = torch.device('cpu')
+    del c._tmp_
+    c = DDI(c)
+    rt = DD({})
+    return c, rt
 
 @hydra.main(config_path="all/gpt", config_name="default", version_base=None)
 def main(cfg: DictConfig):

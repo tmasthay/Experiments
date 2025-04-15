@@ -5,7 +5,11 @@
 grid:
   nx: 50
   ny: 50
-  spacing: [10.0, 10.0]  # dy, dx in meters
+  dy: 10.0
+  dx: 10.0
+  spacing: 
+    - ${grid.dy}
+    - ${grid.dx}
 
 # Simulation parameters
 simulation:
@@ -29,7 +33,9 @@ velocity: 1500
 
 # Receiver geometry (list of [x, y] pairs)
 receivers:
-  - []
+  locations:
+    - ["${grid.dy}", 0.02, 0.02, 1]
+    - ["${grid.dx}", 0.1, 0.9, 100]
 
 # Observed data placeholder (should be replaced with real data)
 data:
