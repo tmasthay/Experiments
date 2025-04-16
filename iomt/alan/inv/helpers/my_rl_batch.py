@@ -33,16 +33,15 @@ class BatchedRiemannLiouvilleFractionalIntegral(nn.Module):
         kernels = []
         for a in self.alphas:
             a_val = float(a.item())
-            if abs(a_val) < 1e-8:  # Special case: alpha == 0 => identity operator.
+            if abs(a_val) == 0.0:  # Special case: alpha == 0 => identity operator.
                 # Delta: impulse at t = 0.
                 k = torch.zeros(max_length, dtype=torch.float32)
                 k[0] = 1.0
             else:
                 k_vals = torch.arange(max_length, dtype=torch.float32)
                 # Discretized kernel: h[k] = (dt^α * k^(α-1)) / Gamma(α), with h[0]=0.
-                k_vals = (self.dt ** a_val) * (k_vals.float() ** (a_val - 1)) / math.gamma(a_val)
-                k_vals[0] = 0.0  # avoid singularity at 0
-                k = k_vals
+                k_vals[0] = 0.0
+                k = (self.dt ** a_val) * (k_vals.float() ** (a_val-1) / math.gamma(a_val))
             # Flip the kernel so that conv1d (which does cross-correlation) computes the correct convolution.
             k_flip = torch.flip(k, dims=[0])
             kernels.append(k_flip)

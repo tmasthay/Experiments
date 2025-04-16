@@ -5,6 +5,49 @@ import matplotlib.pyplot as plt
 from mh.typlotlib import save_frames, get_frames_bool, bool_slice
 from torch.nn import functional as F
 from mh.core import DotDictImmutable as DDI
+from rl_batch import BatchedRiemannLiouvilleFractionalIntegral as RLInt
+
+
+class PiecewiseAlphaScheduler:
+    def __init__(self, num_alphas, step_size, device):
+        self.num_alphas = num_alphas
+        self.step_size = step_size
+        self.call_no = 0
+        self.device = device
+
+    def __call__(self):
+        self.call_no += 1
+        index = min(self.call_no // self.step_size, self.num_alphas - 1)
+        weights = torch.zeros(self.num_alphas)
+        weights[index] = 1.0
+        return weights.to(self.device)
+
+
+def rl_loss(observed_data, alphas, alpha_weights, dt, max_length, gamma=0.1):
+    """
+    Compute the Riemann-Liouville fractional integral loss for a batch of data.
+
+    Parameters:
+        alphas: 1D list or torch.Tensor of scalars (shape [num_alphas]).
+        dt: time sampling interval.
+        max_length: maximum length of the input signal for precomputing the kernels.
+        gamma: a small constant to avoid singularity at 0.
+
+    Returns:
+        A function that computes the loss given simulated and observed data.
+    """
+    preprocess = torch.nn.Softplus(beta=1.0, threshold=20.0)
+    rl_int = RLInt(alphas=alphas, dt=dt, max_length=max_length, gamma=gamma)
+    filtered_obs = preprocess(observed_data)
+
+    def helper(sim_data):
+        # Compute the Riemann-Liouville fractional integral for both simulated and observed data.
+        filtered_sim_data = preprocess(sim_data)
+        sim_data_rl = rl_int(filtered_sim_data - filtered_obs)
+        res = alpha_weights()[:, None] * sim_data_rl
+        return (sim_data_rl**2).mean()
+
+    return helper
 
 
 class IdentityMomentSource(torch.nn.Module):
@@ -147,16 +190,15 @@ def eff_quasi_w1_loss(observed_data, positive_routine):
 
     return helper
 
+
 def get_grad_clone(t):
     return None if t.grad is None else t.grad.clone().cpu().numpy()
+
 
 def get_hist(t):
     data_clone = t.detach().clone().cpu().numpy()
     grad_clone = get_grad_clone(t)
-    return {
-        "data": data_clone,
-        "grad": grad_clone,
-    }
+    return {"data": data_clone, "grad": grad_clone}
 
 
 def main_big():
@@ -219,11 +261,29 @@ def main_big():
         source_amplitudes=true_src_amp,
         pml_width=10,
     )[-1]
-    syn_data = syn_data.detach()
+    root_mean_square_syn = torch.sqrt(
+        torch.mean(syn_data**2, dim=-1, keepdim=True)
+    )  # shape: [num_shots, num_receivers, 1]
+    noise_model = torch.randn_like(syn_data) * 0.1 * root_mean_square_syn
+    syn_data = syn_data.detach() + noise_model
 
     # _loss = captured_l2_loss(syn_data)
-    _loss = eff_quasi_w1_loss(
-        syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0)
+    # _loss = eff_quasi_w1_loss(
+    #     syn_data, torch.nn.Softplus(beta=1.0, threshold=20.0)
+    # )
+    alphas = [1.0]
+    num_epochs = 10000
+    step_size = num_epochs // len(alphas)
+    alpha_weights = PiecewiseAlphaScheduler(
+        num_alphas=len(alphas), step_size=step_size, device=device
+    )
+    _loss = rl_loss(
+        alphas=[1.0],
+        dt=dt,
+        max_length=nt,
+        gamma=0.1,
+        observed_data=syn_data,
+        alpha_weights=alpha_weights,
     )
 
     def get_msg(mu, sig, peak_time, freq, scale, version):
@@ -239,10 +299,10 @@ def main_big():
 
     # Now, create a model with an initial guess for the parameters.
     init_mu = torch.tensor([20.0, 20.0]).to(device).requires_grad_(True)
-    init_sig = torch.tensor([5.0, 5.0]).to(device).requires_grad_(False)
+    init_sig = torch.tensor([5.0, 5.0]).to(device).requires_grad_(True)
     init_peak_time = torch.tensor(0.23).to(device).requires_grad_(True)
     init_freq = torch.tensor(23.0).to(device).requires_grad_(True)
-    init_scale = torch.tensor(1.0).to(device).requires_grad_(False)
+    init_scale = torch.tensor(2.0).to(device).requires_grad_(True)
 
     init_msg = get_msg(
         init_mu,
@@ -275,46 +335,52 @@ def main_big():
     # input(list(source_model.parameters()))
     # Use Adam optimizer on the source_model parameters.
     optimizer = torch.optim.Adam(source_model.parameters(), lr=1e-2)
-    num_epochs = 10000
-    abs_loss_tol = 1e-16
+    # optimizer = torch.optim.LBFGS(source_model.parameters())
+    abs_loss_tol = 1e-8
 
     history = []
     history_freq = 10
     for epoch in range(num_epochs):
-        optimizer.zero_grad()
-        pred_src_amp = source_model.forward()
-        pred_data = dw.scalar(
-            vp,
-            grid_spacing,
-            dt,
-            source_locations=src_loc,
-            receiver_locations=rec_locs,
-            source_amplitudes=pred_src_amp,
-            pml_width=10,
-        )[-1]
-        loss = _loss(pred_data)
-        curr_loss = loss.detach().item()
+        def closure():
+            optimizer.zero_grad()
+            pred_src_amp = source_model.forward()
+            pred_data = dw.scalar(
+                vp,
+                grid_spacing,
+                dt,
+                source_locations=src_loc,
+                receiver_locations=rec_locs,
+                source_amplitudes=pred_src_amp,
+                pml_width=10,
+            )[-1]
+            loss = _loss(pred_data)
+            loss.backward()
+            return loss
+
+        loss = optimizer.step(closure)
+        curr_loss = loss.item()
+
         if curr_loss < abs_loss_tol:
             print(f"Converged at epoch {epoch} with loss {curr_loss:.6f}")
             break
-        loss.backward()
 
-        # Then include them in your history:
         if epoch % history_freq == 0 or epoch == num_epochs - 1:
             history.append(
-                DDI({
-                    "epoch": epoch,
-                    "mu": get_hist(source_model.mu),
-                    "sig": get_hist(source_model.sig),
-                    "peak_time": get_hist(source_model.peak_time),
-                    "freq": get_hist(source_model.freq),
-                    "scale": get_hist(source_model.scale),
-                    "loss": curr_loss,
-                })
+                DDI(
+                    {
+                        "epoch": epoch,
+                        "mu": get_hist(source_model.mu),
+                        "sig": get_hist(source_model.sig),
+                        "peak_time": get_hist(source_model.peak_time),
+                        "freq": get_hist(source_model.freq),
+                        "scale": get_hist(source_model.scale),
+                        "loss": curr_loss,
+                    }
+                )
             )
-        optimizer.step()
+
         if epoch % 10 == 0 or epoch == num_epochs - 1:
-            print(f"Epoch {epoch} | Loss: {loss.item():.6e}")
+            print(f"Epoch {epoch} | Loss: {curr_loss:.6e}")
             print(
                 f"mu: {source_model.mu.data.cpu().numpy()}, "
                 f"sig: {source_model.sig.data.cpu().numpy()}, "
