@@ -1,3 +1,6 @@
+#
+# @VS@ cd _dir/../.. && python main.py
+
 defaults:
 - hydra: default
 - _self_
@@ -23,16 +26,26 @@ ground_truth:
   scale: 1.0
 
 init:
-  mu: [20.0, 20.0]
-  sig: [5.0, 5.0]
-  peak_time: 0.23
-  freq: 23.0
-  scale: 2.0
+  mu: 
+    val: [20.0, 20.0]
+    train: true
+  sig: 
+    val: [5.0, 5.0]
+    train: false
+  peak_time: 
+    val: 0.23
+    train: true
+  freq: 
+    val: 23.0
+    train: true
+  scale: 
+    val: ${ground_truth.scale}
+    train: false
 
 optim:
   name: Adam
   params:
-    lr: 0.01
+    lr: 0.05
 
 loss:
   abs_loss_tol: 1e-8
@@ -41,9 +54,10 @@ alphas: [1.0]
 gamma: 0.1
 
 training:
-  num_epochs: 1000
+  num_epochs: 100
   history_freq: 10
 
+snr: inf
 dupe: 
   - out.txt
   - ${oc.env:PWD}/latest_run.txt

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import torch
 import deepwave as dw
 import matplotlib.pyplot as plt
@@ -8,8 +9,33 @@ from mh.core import DotDictImmutable as DDI
 from rl_batch import BatchedRiemannLiouvilleFractionalIntegral as RLInt
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from mh.core import Tee
+from mh.core import Tee, hydra_out
 
+import matplotlib.colors as mcolors
+
+def color_interpolator(max_iter, color_start, color_end):
+    if len(color_start) != len(color_end):
+        raise ValueError("color_start and color_end must have the same number of components")
+
+    def get_color(iteration):
+        factor = max(0.0, min(float(iteration) / float(max_iter), 1.0))
+        return [(1 - factor) * cs + factor * ce for cs, ce in zip(color_start, color_end)]
+    
+    return get_color
+
+def color_interpolator_string(max_iter, color_start_str, color_end_str):
+    try:
+        start_rgb = mcolors.to_rgb(color_start_str)
+    except ValueError:
+        raise ValueError(f"Invalid start color string: {color_start_str}")
+    try:
+        end_rgb = mcolors.to_rgb(color_end_str)
+    except ValueError:
+        raise ValueError(f"Invalid end color string: {color_end_str}")
+        
+    return color_interpolator(max_iter, start_rgb, end_rgb)
+
+# plt.style.use('dark_background')
 # -- Weight Scheduler Example --
 class PiecewiseAlphaScheduler:
     def __init__(self, num_alphas, step_size, device):
@@ -133,7 +159,10 @@ def main(cfg: DictConfig):
     nx = c.nx
     ny = c.ny
 
-    vp = torch.ones((ny, nx), device=device) * c.vp
+    if type(c.vp) == str:
+        vp = torch.load(c.vp, map_location=device)
+    else:   
+        vp = torch.ones((ny, nx), device=device) * c.vp
 
     # Process source location from config.
     src_loc = torch.tensor(c.src_loc).int().to(device)
@@ -177,7 +206,10 @@ def main(cfg: DictConfig):
     )[-1]
     # Add noise.
     rms = torch.sqrt(torch.mean(syn_data**2, dim=-1, keepdim=True))
-    noise = torch.randn_like(syn_data) * 0.1 * rms
+    if c.snr == 'inf':
+        noise = torch.zeros_like(syn_data)
+    else:
+        noise = torch.randn_like(syn_data) * c.noise * rms
     syn_data = syn_data.detach() + noise
 
     # Loss function (RL loss).
@@ -203,11 +235,11 @@ def main(cfg: DictConfig):
         return '\n'.join(arr)
 
     init_params = c.init
-    init_mu = torch.tensor(init_params.mu).to(device).requires_grad_(True)
-    init_sig = torch.tensor(init_params.sig).to(device).requires_grad_(True)
-    init_peak_time = torch.tensor(init_params.peak_time).to(device).requires_grad_(True)
-    init_freq = torch.tensor(init_params.freq).to(device).requires_grad_(True)
-    init_scale = torch.tensor(init_params.scale).to(device).requires_grad_(True)
+    init_mu = torch.tensor(init_params.mu.val).to(device).requires_grad_(init_params.mu.train)
+    init_sig = torch.tensor(init_params.sig.val).to(device).requires_grad_(init_params.sig.train)
+    init_peak_time = torch.tensor(init_params.peak_time.val).to(device).requires_grad_(init_params.peak_time.train)
+    init_freq = torch.tensor(init_params.freq.val).to(device).requires_grad_(init_params.freq.train)
+    init_scale = torch.tensor(init_params.scale.val).to(device).requires_grad_(init_params.scale.train)
 
     init_msg = get_msg(init_mu, init_sig, init_peak_time, init_freq, init_scale, 'Initial guess:')
     truth_msg = get_msg(true_mu, true_sig, true_peak_time, true_freq, true_scale, 'Ground truth:')
@@ -279,7 +311,7 @@ def main(cfg: DictConfig):
             )
 
         if epoch % 10 == 0 or epoch == num_epochs - 1:
-            print(f"Epoch {epoch} | Loss: {curr_loss:.6e}")
+            print(f"Epoch {epoch} | Loss: {curr_loss:.6e}", end=' ')
             print(
                 f"mu: {source_model.mu.data.cpu().numpy()}, "
                 f"sig: {source_model.sig.data.cpu().numpy()}, "
@@ -296,9 +328,111 @@ def main(cfg: DictConfig):
         source_model.scale,
         'Final result:',
     )
-
+    
     full_msg = f"{init_msg}\n{truth_msg}\n{final_res_msg}"
     print(full_msg)
+    
+    plt.figure(figsize=(20, 15))
+    
+        # ----- Generate GIFs for parameter progression -----
+    # We'll plot each parameter over epochs stored in history.
+    # For each parameter, we assume its history is a 1D array.
+    def plot_param(data, idx, fig, axes, label, **kwargs):
+        # data is the full history, idx selects the frame index.
+        # Figure & axes are provided by get_frames_bool.
+        epoch = data['epoch']
+        # Let's assume data['mu']['data'] returns a numpy array.
+        plt.clf()
+        # Check if data is 1D or 2D.
+        val = data[label]['data']
+        if val.ndim == 1:
+            plt.plot(val, 'o-')
+        elif val.ndim == 2:
+            plt.imshow(val, aspect='auto', origin='lower')
+            plt.colorbar()
+        plt.title(f"{label} at epoch {epoch}")
+        return {}
+    
+    # Create an iterator over the history
+    hist_shape = (len(history),)
+    iter_obj = bool_slice(len(history), strides=[1])
+    color_getter = color_interpolator_string(len(history), 'black', 'red')
+    # We wrap plotting for each parameter individually. For simplicity, we generate one GIF per parameter.
+    for param in ["mu", "sig", "peak_time", "freq", "scale"]:
+        if( init_params[param].train == False ):
+            print(f'Skipping {param} as it is not trainable.') 
+            continue
+        def plotter(*, data, idx, fig, axes, **kw):
+            # Here idx is a tuple; we use the first element as our index.
+            i = idx[0]
+            # If the parameter is 1D, plot; if 2D, use imshow.
+            d = data.history[idx[0]]
+            v = d.data
+            amount_green = idx[0] / len(data.history)
+            amount_red = 1 - amount_green
+            color = [amount_red, amount_green, 0]
+            try: 
+                if param in ['mu', 'sig']:
+                    # assert len(v) == len(data.ref_val), f"Length mismatch: {len(v)=} != {len(data.ref_val)=}"
+                    if( idx[0] ) == 0:
+                        plt.clf()
+                        plt.scatter([data.ref_val[0]], [data.ref_val[1]], c='b', s=100, marker='*')
+                        plt.title(f"{param} progression")
+                        plt.xlabel("Parameter index")
+                        plt.ylabel("Epoch")
+                        vals = torch.tensor(np.array([e.data for e in data.history]) + [data.ref_val])
+                        plt.xlim(vals[:,0].min() - 3, vals[:,0].max() + 3 )
+                        plt.ylim(vals[:,1].min() - 3, vals[:,1].max() + 3 )
+
+                    plt.scatter( [v[0]], [v[1]], color=color, marker='*', s=25, label=f'{idx[0]}')
+                    # plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    plt.tight_layout()
+                elif param in ['peak_time', 'freq', 'scale']:
+                    if idx[0] == 0:
+                        plt.clf()
+                        plt.scatter([data.ref_val], [0.5], c='b', s=100, marker='*')
+                        plt.title(f"{param} progression")
+                        plt.xlabel("Parameter index")
+                        plt.ylabel("Dummy dimension for visualization")
+                    plt.scatter([v], [0.5], color=color, marker='*', s=25, label=f'{idx[0]}')
+                    plt.title(f"{param} at epoch {history[i]['epoch']}")
+            except Exception as e:
+                print(f'Error plotting {param}: {e}, skipping...')
+            
+                
+        curr_history = [e[param] for e in history]
+        ref_val = true_params[param]
+        data = DDI({'history': curr_history, 'ref_val': ref_val})
+        iter = bool_slice(len(curr_history))
+        frames = get_frames_bool(data=data, iter=iter, plotter=plotter)
+        if frames:
+            save_frames(frames, path=hydra_out(param), duration=400, verbose=True)
+            print(f"Saved {param} frames to {hydra_out(param)}")
+            
+        # now just plot a simple difference between ref and history one-d plot
+        # input(np.array([e.data for e in data.history]))
+        vals = torch.tensor(np.array([np.asarray(e.data) for e in data.history]))
+        # input(vals.shape)
+        # input(data.ref_val)
+        ref_val_tensor = torch.Tensor([data.ref_val]).squeeze()
+        # input(ref_val_tensor.shape)
+        # input(vals.shape)
+        if param in ['mu', 'sig', 'peak_time', 'freq']:
+            try:
+                euclid_dist = torch.sqrt(torch.sum((vals - ref_val_tensor) ** 2, dim=1))
+                plt.clf()
+                plt.figure(figsize=(10, 6))
+                plt.plot(euclid_dist, 'o-')
+                plt.title(f'{param} difference from reference')
+                plt.xlabel('Epoch')
+                plt.ylabel('Euclidean distance')
+                plt.savefig(f'{hydra_out(param)}_diff.png')
+                
+                print(f"\033[31m{hydra_out(param)}_diff.png\033[0m")
+            except Exception as e:
+                print(f'Error plotting {param} difference: {e}, skipping...')
+        
+        
 
 if __name__ == "__main__":
     main()
