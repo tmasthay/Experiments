@@ -1,7 +1,25 @@
+defaults:
+  - override launcher: joblib
+
 run:
-  # The run dir is set using our custom key
+  # Output directory for single runs
   dir: .outputs/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
-  
+
 sweep:
-  # The sweep (multirun) dir is set using our custom key
+  # Base directory for multirun sweeps
   dir: .multirun/${hydra.job.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  # Subdirectory for each job in the sweep
+  subdir: ${hydra.job.num}
+
+launcher:
+  n_jobs: 64
+  backend: null
+  prefer: processes
+  require: null
+  verbose: 0
+  timeout: null
+  pre_dispatch: 2*n_jobs
+  batch_size: auto
+  temp_folder: null
+  max_nbytes: null
+  mmap_mode: r

@@ -27,13 +27,13 @@ ground_truth:
 
 init:
   mu: 
-    val: [20.0, 20.0]
+    val: [25.0, 25.0]
     train: true
   sig: 
     val: [5.0, 5.0]
     train: false
   peak_time: 
-    val: 0.23
+    val: 0.2
     train: true
   freq: 
     val: 23.0
@@ -48,16 +48,15 @@ optim:
     lr: 0.05
 
 loss:
-  abs_loss_tol: 1e-8
+  abs_loss_tol: 1e-9
 
 alphas: [1.0]
-gamma: 0.1
+gamma: 0.2
 
 training:
-  num_epochs: 100
-  history_freq: 10
-
-snr: inf
+  num_epochs: 10000
+  history_freq: 25
+snr: 100.0
 dupe: 
   - out.txt
   - ${oc.env:PWD}/latest_run.txt

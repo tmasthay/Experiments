@@ -209,7 +209,7 @@ def main(cfg: DictConfig):
     if c.snr == 'inf':
         noise = torch.zeros_like(syn_data)
     else:
-        noise = torch.randn_like(syn_data) * c.noise * rms
+        noise = torch.randn_like(syn_data) * c.snr * rms
     syn_data = syn_data.detach() + noise
 
     # Loss function (RL loss).
@@ -305,7 +305,7 @@ def main(cfg: DictConfig):
                         "peak_time": get_hist(source_model.peak_time),
                         "freq": get_hist(source_model.freq),
                         "scale": get_hist(source_model.scale),
-                        "loss": curr_loss,
+                        "loss": float(curr_loss),
                     }
                 )
             )
@@ -368,16 +368,14 @@ def main(cfg: DictConfig):
             # If the parameter is 1D, plot; if 2D, use imshow.
             d = data.history[idx[0]]
             v = d.data
-            amount_green = idx[0] / len(data.history)
-            amount_red = 1 - amount_green
-            color = [amount_red, amount_green, 0]
+            color = color_getter(idx[0])
             try: 
                 if param in ['mu', 'sig']:
                     # assert len(v) == len(data.ref_val), f"Length mismatch: {len(v)=} != {len(data.ref_val)=}"
                     if( idx[0] ) == 0:
                         plt.clf()
                         plt.scatter([data.ref_val[0]], [data.ref_val[1]], c='b', s=100, marker='*')
-                        plt.title(f"{param} progression")
+                        plt.title(f"{param} SNR={c.snr}, epoch={idx[0]}")
                         plt.xlabel("Parameter index")
                         plt.ylabel("Epoch")
                         vals = torch.tensor(np.array([e.data for e in data.history]) + [data.ref_val])
@@ -419,18 +417,33 @@ def main(cfg: DictConfig):
         # input(vals.shape)
         if param in ['mu', 'sig', 'peak_time', 'freq']:
             try:
-                euclid_dist = torch.sqrt(torch.sum((vals - ref_val_tensor) ** 2, dim=1))
+                if ref_val_tensor.ndim == 0:
+                    ref_val_tensor = ref_val_tensor[None, None]
+                    vals = vals[:, None]
+                euclid_dist = torch.sqrt(torch.sum((vals - ref_val_tensor) ** 2, dim=-1)) / torch.sqrt(torch.sum(ref_val_tensor ** 2, dim=-1))
                 plt.clf()
                 plt.figure(figsize=(10, 6))
-                plt.plot(euclid_dist, 'o-')
-                plt.title(f'{param} difference from reference')
+                plt.plot([i * c.training.history_freq for i in range(euclid_dist.nelement())], euclid_dist, 'o-')
+                plt.title(f'{param} difference from reference, SNR={c.snr}')
                 plt.xlabel('Epoch')
-                plt.ylabel('Euclidean distance')
+                plt.ylabel('Relative Euclidean distance error')
+                plt.ylim(0, 1.1 * euclid_dist.max())
                 plt.savefig(f'{hydra_out(param)}_diff.png')
                 
                 print(f"\033[31m{hydra_out(param)}_diff.png\033[0m")
             except Exception as e:
                 print(f'Error plotting {param} difference: {e}, skipping...')
+                
+    plt.clf()
+    plt.plot([c.training.history_freq * e for e in range(len(history))], [e.loss for e in history], 'o-')
+    plt.title(f'Loss history, SNR={c.snr}')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.ylim(0, 1.1 * max([e.loss for e in history]))
+    plt.savefig(hydra_out('loss.png'))
+    print(f"\033[31m{hydra_out('loss.png')}\033[0m")
+    
+    print(f'\n\n{hydra_out()}\n\n')
         
         
 
