@@ -1,0 +1,33 @@
+#
+# @VS@ cd _dir/../.. && python main.py --config-name="$(basename _file)"
+
+defaults:
+  - hydra: default
+  - nontrack
+  - _self_
+
+_help:
+  pause_time: 20
+
+x: [0, 10, 100]
+t: [0, 10, 200]
+c: [1, 2, 100]
+
+device: cuda:0
+
+out:
+  path: out
+  duration: 100
+  dpi: 600
+  figsize: [16, 9]
+  pauses: 
+    26: ${_help.pause_time}
+    6: ${_help.pause_time} 
+    50: ${_help.pause_time}
+    74: ${_help.pause_time}
+    94: ${_help.pause_time}
+
+  fontsize: 20
+
+
+
