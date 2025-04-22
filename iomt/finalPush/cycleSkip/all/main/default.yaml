@@ -8,24 +8,70 @@ defaults:
 
 _help:
   pause_time: 20
+  pause_time_mid: 20
+  pause_time_high: 10
+  low:
+    26: ${..pause_time}
+    6: ${..pause_time} 
+    50: ${..pause_time}
+    74: ${..pause_time}
+    94: ${..pause_time}
+
+  mid:
+    17: ${..pause_time_mid}
+    36: ${..pause_time_mid}
+    76: ${..pause_time_mid}
+    100: ${..pause_time_mid}
+    56: ${..pause_time_mid}
+    124: ${..pause_time_mid}
+    185: ${..pause_time_mid}
+    145: ${..pause_time_mid}
+    164: ${..pause_time_mid}
+    
+  high:
+    8: ${..pause_time_high}
+    18: ${..pause_time_high}
+    28: ${..pause_time_high}
+    38: ${..pause_time_high}
+    48: ${..pause_time_high}
+    58: ${..pause_time_high}
+    68: ${..pause_time_high}
+    78: ${..pause_time_high}
+    88: ${..pause_time_high}
+    100: ${..pause_time_high}
+    112: ${..pause_time_high}
+    122: ${..pause_time_high}
+    132: ${..pause_time_high}
+    142: ${..pause_time_high}
+    152: ${..pause_time_high}
+    162: ${..pause_time_high}
+    172: ${..pause_time_high}
+    182: ${..pause_time_high}
+    192: ${..pause_time_high}
+    
+
 
 x: [0, 10, 100]
-t: [0, 10, 200]
-c: [1, 2, 100]
+t: [0, 10, 600]
+
+c_low: [1,2,100]
+c_mid: [2, 4, 200]
+c_high: [4, 8, 200]
+c: ${c_mid}
 
 device: cuda:0
 
 out:
   path: out
   duration: 100
-  dpi: 600
-  figsize: [16, 9]
-  pauses: 
-    26: ${_help.pause_time}
-    6: ${_help.pause_time} 
-    50: ${_help.pause_time}
-    74: ${_help.pause_time}
-    94: ${_help.pause_time}
+  dpi: 100
+  figsize: [16,9]
+  strides: [1,1]
+  legend:
+    loc: upper right
+    bbox_to_anchor: [1.4, 1.0]
+    fontsize: 20
+  pauses: ${_help.mid}
 
   fontsize: 20
 
