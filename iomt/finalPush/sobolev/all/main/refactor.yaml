@@ -1,0 +1,16 @@
+#
+# @VS@ cd _dir/../.. && python main.py --config-name=refactor
+
+defaults:
+- secret
+- hydra: default
+- _self_
+
+snr: 2.0
+
+freq: 0.4
+out:
+  figsize: [16,9]
+  dpi: 100
+  legend:
+    loc: lower left

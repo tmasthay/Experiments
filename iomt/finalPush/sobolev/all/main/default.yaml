@@ -1,0 +1,30 @@
+#
+# @VS@ cd _dir/../.. && python main.py
+
+mode: riemann            # or "riemann"
+sobolev_order: -0.5       # used when mode == "sobolev"
+sobolev_orders:           # optional list; falls back to sobolev_order if unset
+  - -1.0
+  - -0.5
+  -  0.0
+
+# riemann_order: -0.5       # used when mode == "riemann"
+# riemann_orders:           # optional list; falls back to riemann_order if unset
+#   - -1.0
+#   - -0.5
+#   -  0.0
+
+riemann_orders: [1.0]
+signal_components:
+  - [1.0, 1.0]
+
+
+noise_level: 0.0
+
+dt: 0.01
+nt: 1000
+
+optim:
+  lr: 0.1
+  momentum: 0.9
+  steps: 5000
