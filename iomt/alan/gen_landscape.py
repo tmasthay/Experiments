@@ -197,6 +197,17 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
         )
         assert non_rt_diff == {}, f'{c=}, {non_rt_diff=}, {cfg_orig=}'
 
+    c.assert_keys_present(
+        [
+            'rt.data.vp',
+            'rt.data.src_loc',
+            'rt.data.rec_loc',
+            'rt.data.src_amp',
+            'rt.data.vs',
+            'rt.data.rho',
+        ]
+    )
+
     def bnd_assert(bounds, val, name):
         assert (
             bounds[0] < val.min()
@@ -205,14 +216,16 @@ def preprocess_cfg(cfg: DictConfig) -> DotDict:
             val.max() < bounds[1]
         ), f'{name}_max={val.max()}, upper={bounds[1]}'
 
-    bnd_assert(c.bounds.vp, c.rt.vp, 'vp')
-    bnd_assert(c.bounds.vs, c.rt.vs, 'vs')
-    bnd_assert(c.bounds.rho, c.rt.rho, 'rho')
+    bnd_assert(c.bounds.vp, c.rt.data.vp, 'vp')
+    bnd_assert(c.bounds.vs, c.rt.data.vs, 'vs')
+    bnd_assert(c.bounds.rho, c.rt.data.rho, 'rho')
 
     # Assert that the vp/vs ratio is within bounds
-    vp_vs = c.rt.vp / (1e-6 + c.rt.vs)
+    vp_vs = c.rt.data.vp / (1e-6 + c.rt.data.vs)
     assert not torch.isnan(vp_vs).any(), f'{vp_vs=}'
-    assert vp_vs.min() >= torch.sqrt(torch.tensor(2.0)), f'{vp_vs.min().item()=}'
+    assert vp_vs.min() >= torch.sqrt(
+        torch.tensor(2.0)
+    ), f'{vp_vs.min().item()=}'
 
     return c
 
@@ -260,10 +273,13 @@ def main(cfg: DictConfig):
             )
 
             # five minute cutoff before we actually query. Else just run.
-            cutoff = 300
+            cutoff = torch.inf
             absolute_cutoff = 86400
             if estimated_time > absolute_cutoff:
-                raise RuntimeError(f"Estimated time is {estimated_time:.2f} seconds...> {absolute_cutoff} seconds. Exiting...")
+                raise RuntimeError(
+                    f"Estimated time is {estimated_time:.2f} seconds...>"
+                    f" {absolute_cutoff} seconds. Exiting..."
+                )
             if (
                 not c.get('dupe', False)
                 and estimated_time > cutoff
@@ -273,7 +289,7 @@ def main(cfg: DictConfig):
                 print('Exiting...')
                 return
             begin_time = time()
-            c.rt.res = c.main.callback(c)
+            c.rt.data.res = c.main.callback(c)
             total_time = time() - begin_time
         except Exception as e:
             # print(f'Error: {e}')

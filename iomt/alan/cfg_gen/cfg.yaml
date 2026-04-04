@@ -1,8 +1,5 @@
 defaults:
   - _self_
-  - static: elastic_landscape
-  - resolve_order: ${static}
-  - rt: ${static}
 
 import_specs:
   delim: "@"
@@ -12,11 +9,5 @@ import_specs:
 use_prev_data: false
 prev_data_dir: null
 
-dupe: true
+dupe: false
 editor: code
-
-# hydra:
-#   launcher:
-#     class: joblib
-#     params:
-#       n_jobs: 4  # Number of parallel jobs

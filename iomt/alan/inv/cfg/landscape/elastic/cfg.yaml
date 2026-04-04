@@ -1,0 +1,62 @@
+pml_width: 100
+vel: 1500.0
+
+nt: 3000
+dt: 0.004
+n_shots: 1
+
+scale:
+  src: 1.0e+09
+  vs: 0.333
+freq: 2.5
+peak_time_factor: 1.5
+
+n_epochs: 100
+lr: 0.1
+
+editor: null
+device: 'cuda:1'
+
+ref_loc: [0.5, 0.5]
+init_loc: [0.6, 0.5]
+
+beta: [4.0, 4.0]
+halfwidth: [70, 70]
+
+dupe: False
+
+delta: 25
+step: 100
+eps: 600.0
+
+data_path: marm2
+case_path: smooth
+path: ${oc.env:CONDA_PREFIX}/data/${data_path}/${case_path}
+
+plt:
+  final:
+    subplot:
+      shape: [2, 1]
+      setup_kw:
+        figsize: [10, 10]
+      order: [1, 2]
+    title: 'Final Wavefield'
+    imshow:
+      cmap: seismic
+      aspect: 'auto'
+    iter:
+      none_dims: [1, 2]
+
+    save:
+      path: wavefields
+      movie_format: gif
+
+sleep_time: 10
+
+batch_size: 60
+
+rec:
+  first: 1
+  step: 10
+  num: 100
+  depth: 2

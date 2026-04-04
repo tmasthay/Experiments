@@ -1,0 +1,8 @@
+constructor: __import__ @ misfit_toys.fwi.loss.w2 @ W2LossArg
+kw:
+  dt: ${grid.dt}
+  nt: ${grid.nt}
+  nprob: 
+    __call__: ${dep.helpers} int_scale
+    scale: 1.0
+    ref: ${grid.nt}

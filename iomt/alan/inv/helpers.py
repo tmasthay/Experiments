@@ -16,7 +16,6 @@ from time import time
 import torch.nn.functional as F
 from misfit_toys.utils import tslice
 from returns.curry import curry
-from misfit_toys.fwi.seismic_data import ParamConstrained, Param
 
 
 def frames_to_strides(*shape, none_dims=None, max_frames):
@@ -162,34 +161,6 @@ def get_grid_limits(*, sy, ny, dy, sx, nx, dx):
     max_x = sx + nx * dx
     return [sy, max_y, max_x, sx]
     # return [sy, sx, max_y, max_x]
-    
-def preload_data(*, root, device):
-    def get(x):
-        path = pj(root, x.replace('.pt', '') + '.pt')
-        return torch.load(path, map_location=device)
-
-    d = DotDict()
-    d.vp = get('vp')
-    d.vs = get('vs')
-    d.rho = get('rho')
-    
-    d.src_amp = DotDict()
-    d.src_amp.y = get('src_amp_y')
-    d.src_amp.x = get('src_amp_x')
-    
-    d.src_loc = DotDict()
-    d.src_loc.x = get('src_loc_x')
-    d.src_loc.y = get('src_loc_y')
-    
-    d.rec_loc = DotDict()
-    d.rec_loc.x = get('rec_loc_x')
-    d.rec_loc.y = get('rec_loc_y')
-    
-    d.res = DotDict()
-    d.res.errors = get('errors')
-    d.res.obs = get('obs')
-    
-    return d
 
 
 def ricker_sources(
@@ -338,49 +309,22 @@ def easy_elastic(
         **kw,
     )
 
-def preloaded_landscape_loop(c: DotDict):
-    # raise ValueError(f'{c.rt.data.flat_keys()=}')
-    D = c.rt.data
-    obs = D.res.obs
-    obs_exp = obs.view(c.src.n_horz, c.src.n_deep, c.rec.n_recs, c.grid.nt, 2)
-    ref_obs = obs_exp[None, c.src.n_horz // 2, c.src.n_deep // 2, :, :, :]
-    # raise ValueError(f'{ref_obs.shape=}')
-    my_loss = c.rt.loss.constructor(
-        ref_obs, *c.rt.loss.get('args', []), **c.rt.loss.get('kw', {})
-    )
-    # raise ValueError(f'{my_loss=}')
-    
-    idxs = torch.arange(0, D.src_loc.y.shape[0], c.batch_size)
-    if idxs[-1] != D.src_loc.y.shape[0]:
-        idxs = torch.cat([idxs, torch.tensor([D.rec_loc.y.shape[0]])])
-    slices = [slice(idxs[i], idxs[i + 1]) for i in range(idxs.shape[0] - 1)]
-    errors = torch.rand(c.src.n_horz * c.src.n_deep, device=c.device) * 100.0
-    
-    num_slices = len(slices)
-    start_time = time()
-    
-    def report_progress(i):
-        msg = f'{i+1}/{num_slices}...'
-        if i > 0:
-            total_run_time = time() - start_time
-            avg_run_time = total_run_time / i
-            remaining_time = avg_run_time * (num_slices - i)
-            sep = '    '
-            msg += (
-                f'{sep}AVG: {avg_run_time:.2f}s'
-                f'{sep}TOTAL: {total_run_time:.2f}s'
-                f'{sep}ETR: {remaining_time:.2f}s'
-            )
-        # print(msg, flush=True, end='\r')
-        print(msg, flush=True)
-    
-    for i, s in enumerate(slices):
-        report_progress(i)
-        errors[s] = my_loss(obs[s])
-        
-    errors = errors.view(c.src.n_horz, c.src.n_deep)
-    
-    return DotDict({'errors': errors, 'obs': obs})
+
+class MyL2Loss(torch.nn.Module):
+    def __init__(self, ref_data):
+        super().__init__()
+        self.ref_data = ref_data
+
+    def forward(self, data):
+        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
+        assert (
+            tmp.shape == data.shape
+        ), f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
+        diff = tmp - data
+        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1)
+        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
+        return v
+
 
 def elastic_landscape_loop(c):
     def forward(s):
@@ -480,6 +424,49 @@ def elastic_landscape_loop(c):
     return DotDict(
         {'final_wavefields': final_wavefields, 'obs': obs, 'errors': errors}
     )
+
+
+class EasyW1Loss(torch.nn.Module):
+    def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
+        super().__init__()
+        if renorm is None:
+            renorm = torch.abs
+
+        self.renorm = renorm
+        self.dim = dim
+        self.eps = eps
+        self.cdf = self.__cdf__(ref_data, renorm=renorm, eps=eps, dim=dim)
+        # input(f'{self.cdf.shape=}')
+
+    @staticmethod
+    def __cdf__(data, *, renorm, dim=-1, eps=1e-8):
+        pdf = renorm(data)
+        assert pdf.min() >= 0.0, f'{pdf.min()=}, should be >= 0.0'
+
+        v = torch.cumulative_trapezoid(pdf, dim=dim)
+        assert torch.isnan(v).sum() == 0, f'{v=}'
+        divider = tslice(v, dims=[dim]).unsqueeze(dim)
+        assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
+        u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
+        delta = 1.0e-4
+        assert u.max() <= 1.0 + delta, f'{u.max().item()=}, should be <= 1.0'
+        assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
+        return u
+
+    def forward(self, data: torch.Tensor) -> torch.Tensor:
+        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
+        # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
+        # diff = (lcl_cdf - self.cdf).abs()
+        # return torch.sum(diff**2, dim=self.dim)
+        diff = lcl_cdf - self.cdf
+        integrand = diff**2
+        res = torch.mean(integrand, dim=self.dim)
+        
+        # consider refactoring later if you want something
+        # more general, but for now this is fine
+        res_flat = res.view(res.shape[0], -1)
+        return res_flat.mean(dim=1)
+        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
 
 
 def rel_label(*, label, diff, num, unit):
@@ -647,15 +634,7 @@ def plot_landscape(c: DotDict, *, path):
     # errors_flat = errors.view(-1)
 
     def plot_errors():
-        nonlocal errors
         plt.clf()
-        # u = torch.clamp(errors, max=5000.0)
-        scale = c.postprocess.plt.errors.other.get('scale', None)
-        if scale is not None: 
-            if scale.name == 'log':
-                errors = torch.log10(1.0 + errors)
-            elif scale.name == 'clamp': 
-                errors = torch.clamp(errors, **scale.filter(['name']))
         easy_imshow(
             errors.cpu(),
             path=pj(path, opts.errors.other.filename),
@@ -834,244 +813,3 @@ def plot_landscape(c: DotDict, *, path):
         add_err('Error plotting obs', traceback.format_exc())
 
     return '\n'.join(rt_error_list)
-
-def plot_landscape_no_wavefields(c: DotDict, *, path):
-    assert 'rt' in c
-    assert 'data' in c.rt
-    assert 'res' in c.rt.data
-
-    d = c.rt.data
-    res = d.res
-    # input(f'{d.flat_keys()=}')
-    obs = res.obs
-    errors = res.errors
-
-    opts = c.postprocess.plt
-
-    src_loc_y = (
-        d.src_loc.y.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
-    )
-    src_loc_x = (
-        d.src_loc.x.detach().cpu().view(c.src.n_horz, c.src.n_deep, 2)
-    )
-    # errors_flat = errors.view(-1)
-
-    def plot_errors():
-        nonlocal errors
-        plt.clf()
-        # u = torch.clamp(errors, max=5000.0)
-        scale = c.postprocess.plt.errors.other.get('scale', None)
-        if scale is not None: 
-            if scale.name == 'log':
-                errors = torch.log10(1.0 + errors)
-            elif scale.name == 'clamp': 
-                errors = torch.clamp(errors, **scale.filter(['name']))
-        easy_imshow(
-            errors.cpu(),
-            path=pj(path, opts.errors.other.filename),
-            **opts.errors.filter(exclude=['other']),
-        )
-        plt.clf()
-
-    def plot_medium():
-        plt.clf()
-
-        def toggle_subplot(i):
-            plt.subplot(*subp_med.shape, subp_med.order[i - 1])
-
-        subp_med = opts.medium.subplot
-        fig, axes = plt.subplots(*subp_med.shape, **subp_med.kw)
-        plt.suptitle(subp_med.suptitle)
-
-        toggle_subplot(1)
-        easy_imshow(d.vp.cpu().T, **opts.medium.vp.imshow)
-
-        toggle_subplot(2)
-        easy_imshow(d.vs.cpu().T, **opts.medium.vs.imshow)
-
-        toggle_subplot(3)
-        easy_imshow(d.rho.cpu().T, **opts.medium.rho.imshow)
-
-        filename = f'{pj(path, opts.medium.filename)}.png'
-        plt.savefig(filename)
-        print(f'Saved vp,vs,rho to {filename}')
-        plt.clf()
-
-    # this callback is much, much slower than it needs to be.
-    def plot_obs():
-        plt.clf()
-
-        t = torch.linspace(0.0, c.grid.dt * c.grid.nt, c.grid.nt)
-        beta = opts.obs.beta
-        geo_scale = opts.obs.geo_scale
-        plot_scale = (1 + beta * t)**geo_scale
-        ps_final = plot_scale[:, None]
-        def plotter_obs(*, data, idx, fig, axes):
-            subp_obs = opts.obs.subplot
-            if 'other' in opts.obs.y and opts.obs.y.other.get('static', False):
-                opts.obs.y.bound_data = data[..., 0]
-                opts.obs.x.bound_data = data[..., 1]
-
-            plt.clf()
-            plt.subplot(*subp_obs.shape, subp_obs.order[0])
-            easy_imshow(
-                ps_final * data[idx][..., 0].cpu().T, **opts.obs.y.filter(['other'])
-            )
-
-            plt.subplot(*subp_obs.shape, subp_obs.order[1])
-            easy_imshow(
-                ps_final * data[idx][..., 1].cpu().T, **opts.obs.x.filter(['other'])
-            )
-
-        subp_obs = opts.obs.subplot
-        fopts_obs = opts.obs.frames
-        fig, axes = plt.subplots(*subp_obs.shape, **subp_obs.kw)
-        strides = frames_to_strides(
-            *obs.shape,
-            none_dims=fopts_obs.iter.none_dims,
-            max_frames=fopts_obs.max_frames,
-        )
-        iter_obs = bool_slice(*obs.shape, **fopts_obs.iter, strides=strides)
-        frames = get_frames_bool(
-            data=obs, iter=iter_obs, plotter=plotter_obs, fig=fig, axes=axes
-        )
-        filename_obs = pj(path, opts.obs.filename)
-        save_frames(frames, path=filename_obs)
-        print(f'\nSaved obs to {pj(path, f"{filename_obs}.gif")}\n')
-        plt.clf()
-
-    rt_error_list = []
-
-    def add_err(e, msg):
-        stars = 80 * '*'
-        rt_error_list.append(stars)
-        rt_error_list.append(msg)
-        rt_error_list.append(e)
-        rt_error_list.append(stars)
-        rt_error_list.append('\n\n')
-
-    try:
-        plot_errors()
-    except:
-        add_err('Error plotting errors', traceback.format_exc())
-
-    try:
-        plot_medium()
-    except:
-        add_err('Error plotting medium', traceback.format_exc())
-
-    try:
-        plot_obs()
-    except:
-        add_err('Error plotting obs', traceback.format_exc())
-
-    return '\n'.join(rt_error_list)
-
-class SourceAmplitudes(torch.nn.Module):
-    def __init__(
-        self,
-        *,
-        ny: int,
-        nx: int,
-        init_loc0: float,
-        init_loc1: float,
-        halfwidth: int,
-        beta: float,
-        source_trace: torch.Tensor,
-        trainable: bool = True,
-    ):
-        super().__init__()
-        self.ny = ny
-        self.nx = nx
-        self.trainable = trainable
-        if trainable:
-            self.loc = ParamConstrained(
-                p=torch.tensor([init_loc0, init_loc1]),
-                minv=0,
-                maxv=min(ny, nx),
-                requires_grad=True,
-            )
-        else:
-            self.loc = Param(
-                p=torch.tensor([init_loc0, init_loc1]), requires_grad=False
-            )
-        self.source_trace = source_trace
-        self.device = source_trace.device
-        self.dtype = source_trace.dtype
-        self.halfwidth = halfwidth
-        self.beta = torch.tensor(beta).to(self.dtype).to(self.device)
-
-    def _get_weight(self, loc, n):
-        x = torch.arange(n, device=self.device, dtype=self.dtype) - loc
-        bessel_arg = torch.relu(self.beta * (1 - (x / self.halfwidth) ** 2)) ** 0.5
-        bessel_term = torch.i0(bessel_arg) / torch.i0(self.beta) * torch.sinc(x)
-        return bessel_term * torch.sinc(x)
-
-    def forward(self):
-        loc = self.loc()
-        return (
-            self.source_trace[:, None]
-            * self._get_weight(loc[0], self.ny).reshape(1, -1, 1, 1)
-            * self._get_weight(loc[1], self.nx).reshape(1, 1, -1, 1)
-        ).reshape(self.source_trace.shape[0], -1, self.source_trace.shape[-1])
-                
-class EasyW1Loss(torch.nn.Module):
-    def __init__(self, ref_data, *, renorm=None, dim=-1, eps=1e-8):
-        super().__init__()
-        if renorm is None:
-            renorm = torch.abs
-
-        self.renorm = renorm
-        self.dim = dim
-        self.eps = eps
-        self.cdf = self.__cdf__(ref_data, renorm=renorm, eps=eps, dim=dim)
-        # input(f'{self.cdf.shape=}')
-
-    @staticmethod
-    def __cdf__(data, *, renorm, dim=-1, eps=1e-8):
-        pdf = renorm(data)
-        assert pdf.min() >= 0.0, f'{pdf.min()=}, should be >= 0.0'
-
-        v = torch.cumulative_trapezoid(pdf, dim=dim)
-        assert torch.isnan(v).sum() == 0, f'{v=}'
-        divider = tslice(v, dims=[dim]).unsqueeze(dim)
-        assert divider.min() > 0.0, f'{divider.min()=}, should be > 0.0'
-        u = v / (eps + tslice(v, dims=[dim]).unsqueeze(dim=dim))
-        assert u.max() <= 1.0, f'{u.max().item()=}, should be <= 1.0'
-        assert u.min() >= 0.0, f'{u.min().item()=}, should be >= 0.0'
-        # input(f'{pdf.shape=}, {data.shape=}, {u.shape=}, {v.shape=}, {divider.shape=}')
-        return u
-
-    def forward(self, data: torch.Tensor) -> torch.Tensor:
-        lcl_cdf = EasyW1Loss.__cdf__(data, renorm=self.renorm, dim=self.dim, eps=self.eps)
-        # raise RuntimeError(f'{self.cdf.shape=}, {lcl_cdf.shape=}')
-        # diff = (lcl_cdf - self.cdf).abs()
-        # return torch.sum(diff**2, dim=self.dim)
-        # input(f'{lcl_cdf.shape=}, {self.cdf.shape=}')
-        diff = lcl_cdf - self.cdf
-        integrand = diff**2
-        res = torch.mean(integrand, dim=self.dim)
-        
-        # consider refactoring later if you want something
-        # more general, but for now this is fine
-        res_flat = res.view(res.shape[0], -1)
-        return res_flat.mean(dim=1)
-        # raise RuntimeError(f'{torch.mean(integrand, dim=self.dim).shape=}') 
-
-class MyL2Loss(torch.nn.Module):
-    def __init__(self, ref_data):
-        super().__init__()
-        self.ref_data = ref_data
-
-    def forward(self, data):
-        tmp = self.ref_data.repeat(data.shape[0], 1, 1, 1)
-        assert (
-            tmp.shape == data.shape
-        ), f'{self.ref_data.shape=}, {tmp.shape=}, {data.shape=}'
-        diff = tmp - data
-        rescale_factor = diff.shape[0] / diff.numel()
-        v = torch.norm(diff, dim=-1).norm(dim=-1).norm(dim=-1) * rescale_factor
-        assert v.shape[0] == data.shape[0], f'{v.shape=}, {data.shape=}'
-        return v
-
-

@@ -4,16 +4,17 @@
 # python_args=("-W" "ignore")
 python_args=("gen_landscape.py")
 hydra_args=(
-    "static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar"
+    # "static/postprocess/plt/theme@postprocess.plt.theme=seismic_redstar"
     # "grid.ny=500,3400"
     # "grid.nx=500,700"
     # "grid.nt=2000,3000,4000"
+    "static=preload"
     "grid.ny=3400"
     "grid.nx=700"
     "grid.nt=3000"
     "src.n_horz=51"
     "src.n_deep=51"
-    "gpu='cuda:1'"
+    "gpu='cuda:0'"
     "batch_size=50"
     "src.lower_left=[0.4,0.6]"
     "src.upper_right=[0.6,0.4]"
@@ -22,7 +23,7 @@ hydra_args=(
     # "rt/rho=hom"
     "dupe=true"
     "editor=null"
-    "rt/loss=w1"
+    # "rt/loss=w1"
     # "--multirun"
 )
 
