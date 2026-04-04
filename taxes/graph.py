@@ -68,6 +68,7 @@ def plot_effective_taxes(
     highlighted_income=None,
     highlighted_etr=None,
     unit=100000,
+    mode=None
 ):
     unit_str = unit_to_string(unit)
     incomes = incomes / unit
@@ -76,11 +77,12 @@ def plot_effective_taxes(
     plt.plot(incomes, effective_tax_rates)
     plt.xlabel(f'Income ({unit_str})')
     plt.ylabel('Effective Tax Rate (%)')
-    plt.title('Effective Tax Rate vs Income')
+    plt.title(f'Effective Tax Rate vs Income: {mode}')
     if highlighted_income is not None:
         plt.scatter(highlighted_income, highlighted_etr, color='red')
     plt.grid(True)
     plt.savefig(filename)
+    print(filename)
 
 
 def preprocess_cfg(cfg: DictConfig) -> DotMap:
@@ -109,6 +111,7 @@ def main(cfg: DictConfig) -> None:
         highlighted_income=c.ref_income,
         highlighted_etr=highlighted_etr,
         unit=c.unit,
+        mode=cfg.mode
     )
 
 
